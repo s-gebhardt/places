@@ -1,0 +1,57 @@
+<div class="panel left-panel">
+	<div class="left-panel-gameboard" *ngFor="let board of (leftGameBoards | async)">
+		<h2 class="small-title-left" [ngClass]="board.isPositive ? '--is-positive' : '--is-negative'" translate>{{
+			"map_name_" + board.id }}</h2>
+		<tro-svg-game-board [ngClass]="(focusedGameBoard | async) == board ? '--is-center': '--not-center'" class="side-board" [boardData]="board" hideLegend [clickMode]="clickMode.SelectBoard"
+			[readOnly]="readOnly"></tro-svg-game-board>
+	</div>
+</div>
+<div class="panel center-panel">
+	<header>
+		<p translate [translateParams]="{value: (level | async)?.levelNumber}" troLevelIndicator>Level</p>
+		<h1 translate>{{ 'title' | translate }}</h1>
+		<span class="icon-help-circle" (click)="openHelp()"></span>
+	</header>
+	<div>
+		<div class="production-type-buttons">
+			<tro-production-type-button *ngFor="let type of productionTypes" [productionType]="type"
+				layout2></tro-production-type-button>
+		</div>
+	</div>
+	<div class="game-board-wrapper">
+		<tro-svg-game-board [boardData]="focusedGameBoard | async" hideLegend [clickMode]="gameBoardClickMode.Field" class="main-board"
+			[readOnly]="readOnly"></tro-svg-game-board>
+		<div class="score-board-wrapper">
+			<button troButton class="btn-prev" (click)="prevLevel()" [disabled]="(level | async)?.levelNumber == 1"
+				translate>Previous Level</button>
+			<button troButton class="btn-next" (click)="nextLevel()"
+				[disabled]="(!(settings | async)?.infiniteLevels) && (level | async)?.levelNumber != 1" translate>Next
+				Level</button>
+
+			<tro-score-board *ngIf="!((level | async)?.scores)" class="score-board"></tro-score-board>
+			<tro-score-board *ngIf="(level | async)?.scores" isStatic [scores]="(level | async)!.scores" class="score-board"></tro-score-board>
+			<div *ngIf="(level | async)?.scoreImage" [ngClass]="imageExpand ? 'expanded' : ''" class="expandable">
+				<img  [src]="(level | async)?.scoreImage" />
+				<button mat-mini-fab color="primary" (click)="switchExpand()" aria-label="expand/collapse">
+					<mat-icon *ngIf="!imageExpand">open_in_full</mat-icon>
+					<mat-icon *ngIf="imageExpand">close_fullscreen</mat-icon>
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
+<div class="panel right-panel">
+	<div class="right-panel-gameboard" *ngFor="let board of (rightGameBoards | async)">
+		<tro-svg-game-board [ngClass]="(focusedGameBoard | async) == board ? '--is-center': '--not-center'" class="side-board" [boardData]="board" [clickMode]="clickMode.SelectBoard" hideLegend
+			[readOnly]="readOnly"></tro-svg-game-board>
+		<h2 class="small-title-right" [ngClass]="board.isPositive ? '--is-positive' : '--is-negative'" translate>{{
+			"map_name_" + board.id }}</h2>
+	</div>
+</div>
+<tro-help></tro-help>
+<dialog id="svg-level-dialog">
+	<p translate [translateParams]="{value: minSelected, current: currentlySelectedPercentage}">Select minimum fields</p>
+	<form method="dialog">
+		<button mat-button color="primary">OK</button>
+	</form>
+  </dialog>

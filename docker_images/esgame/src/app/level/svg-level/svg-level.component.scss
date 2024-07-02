@@ -1,0 +1,104 @@
+@import 'variables';
+
+
+:host {
+	.--is-center {
+		border: 1px red solid;
+	}
+	.game-board-wrapper {
+		max-width: 700px;
+	}
+
+	.main-board {
+		max-height: 500px;
+	}
+
+	.side-board {
+		max-width: 350px;
+	}
+
+	.score-board {
+		grid-column: 1 / 2;
+		margin-top: 15px;
+	}
+
+	.expandable {
+		position: relative;
+		margin-top: 15px;
+
+		&.expanded {
+			width: 80%;
+			overflow: visible;
+			position: absolute;
+			left: 10%;
+			top: 0px;
+		}
+
+		img {
+			width: 100%;
+			background: white;
+			margin: 0;
+			padding: 0;
+			max-width: 100%;
+			border: 2px solid lightgray;
+		}
+
+		button {
+			position: absolute;
+			top: 5px;
+			left: 5px;
+		}
+	}
+
+
+
+
+	.small-title-left,
+	.small-title-right {
+		margin: 5px 0;
+		font-size: 16px;
+		writing-mode: vertical-lr;
+	}
+
+	.small-title-left {
+		transform: rotate(180deg);
+	}
+
+	.left-panel-gameboard,
+	.right-panel-gameboard {
+		display: flex;
+		width: 100%;
+		align-items: center;
+		margin-top: 5px;
+	}
+
+	.right-panel-gameboard {
+		justify-content: end;
+	}
+
+	.--is-positive {
+		color: black;
+	}
+
+	.--is-negative {
+		color: black;
+	}
+
+	dialog::backdrop {
+		background: hsl(201 50% 40% /.5);
+	}
+
+	/* Festlegung im Default-Stylesheet der Browser */
+	dialog:not([open]) {
+		display: none;
+	}
+
+	/* Styling der geöffneten Popup-Box */
+	dialog[open] {
+		width: 20em;
+		border-radius: 5px;
+		background: white;
+		border: thin solid $color-primary;
+		margin: 5em auto;
+	}
+}

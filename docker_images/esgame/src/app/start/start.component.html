@@ -1,0 +1,26 @@
+<div class="container">
+	<p>Welcome to the new version of</p>
+	<h1>Tradeoff: Agriculture Edition</h1>
+	<p>Bachelor's thesis by Nico Kappeler and Vangelis Al-Sghir</p>
+	<p>Please select your prefered game language</p>
+	<mat-form-field appearance="fill">
+		<mat-label translate>Language</mat-label>
+		<mat-select [value]="currentLanguage" (selectionChange)="changeLanguage($event)">
+			  <mat-option *ngFor="let lang of languages" [value]="lang">
+				{{lang | translate}}
+			  </mat-option>
+		</mat-select>
+	</mat-form-field>
+	<p>Select a configuration or import a custom:</p>
+	<div class="configs">
+		<button mat-raised-button color="primary" (click)="loadDynamic()">Configuration 1 (Dynamic maps)</button>
+		<button mat-raised-button color="primary" (click)="loadStatic()">Configuration 2 (Static maps)</button>
+		<tro-import-config></tro-import-config>
+	</div>
+	<button mat-raised-button color="primary" [routerLink]="['configurator']">Make own configuration</button>
+	<div class="images">
+		<img src="assets/images/logos/fhnw.svg">
+		<img src="assets/images/logos/wageningen.svg">
+		<img src="assets/images/logos/utrecht.png">
+	</div>
+</div>

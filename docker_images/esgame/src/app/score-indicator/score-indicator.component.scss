@@ -1,0 +1,23 @@
+@import 'variables';
+
+.score-indicator {
+	border: 1px solid black;
+	font-style: bold;
+	font-size: 24px;
+	color: $color-positive;
+	border-radius: 5px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 30px;
+	padding: 0 15px;
+	visibility: hidden;
+
+	&.--visible {
+		visibility: visible;
+	}
+
+	&.--negative {
+		color: $color-negative;
+	}
+}

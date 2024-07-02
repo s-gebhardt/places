@@ -1,0 +1,11 @@
+<table>
+	<tr>
+		<th translate class="--left-align">Score</th>
+		<th class="--right-align">{{totalScore}}</th>
+	</tr>
+	<tr *ngFor="let s of groupedScores">
+		<td>{{s.name}}</td>
+		<td [ngClass]="s.score > 0 ? '--positive' : s.score < 0 ? '--negative' : ''" class="--right-align">{{s.score}}</td>
+	</tr>
+	
+</table>

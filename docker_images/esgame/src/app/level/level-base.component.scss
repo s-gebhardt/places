@@ -1,0 +1,89 @@
+:host {
+	display: flex;
+	width: 100vw;
+	height: 100vh;
+	overflow: auto;
+
+	header {
+		margin: 15px 0px;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		text-align: center;
+
+		.icon-help-circle {
+			font-size: 30px;
+			cursor: pointer;
+		}
+	}
+	
+	.panel {
+		gap: 0;
+		padding: 0 15px;
+		margin-bottom: 30px;
+	}
+	
+	.left-panel {
+		flex: 0 1 25%;
+	}
+
+	.center-panel {
+		flex: 0 0 50%;
+	}
+
+	.right-panel {
+		flex: 0 1 25%;
+	}
+
+	.production-type-buttons {
+		gap: 30px;
+	}
+
+	.btn-prev {
+		justify-self: flex-start;
+	}
+
+	.btn-next {
+		justify-self: flex-end;
+	}
+
+	.game-board-wrapper {
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		max-width: 400px;
+	}
+
+	.score-board-wrapper {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		width: 100%;
+		align-items: flex-start;
+		margin-top: 15px;
+	}
+}
+
+
+.panel {
+	flex: 0 0 33%;
+	padding: 1rem 0rem;
+	display: flex;
+	gap: 1rem;
+	flex-direction: column;
+	align-items: center;
+	align-self: flex-start;
+}
+
+.panel.center-panel {
+	flex: 1;
+	position: sticky;
+	top: 0;
+}
+
+.production-type-buttons {
+	display: flex;
+	gap: 15px;
+	margin-bottom: 15px;
+}

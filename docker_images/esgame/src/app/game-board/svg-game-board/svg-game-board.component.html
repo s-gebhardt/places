@@ -1,0 +1,20 @@
+<svg [ngStyle]="{'background-image': background + ', ' + background2}"
+	attr.viewBox="0 0 {{boardData?.width ?? 0}} {{boardData?.height ?? 0}}">
+	<defs>
+		<pattern *ngFor="let productionType of productionTypes" [attr.id]="'pattern_' + productionType.id + '_' + boardData?.id"
+			patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)">
+			<line x1="0" y="0" x2="0" y2="10" [attr.stroke]="productionType.fieldColor" [attr.display]="displayPatterns" [attr.stroke-opacity]="getStrokeOpacity()" [attr.stroke-width]="getStrokeWidth()" />
+		</pattern>
+	</defs>
+		<path troSvgField [field]="field"
+			[clickable]="clickMode == GameBoardClickMode.Field && field.editable  && !readOnly"
+			[showStroke]="this._boardData.gameBoardType != consequenceType"
+			[gameBoardId]="boardData!.id"
+			[hasOpacity]="this._boardData.gameBoardType == consequenceType"
+			*ngFor="let field of fields" [attr.d]="field.path"></path>
+
+	<foreignObject x="1" y="1" width="20%" height="100px">
+		<tro-legend-board *ngIf="legend != undefined" [legendData]="legend" [isSmall]="hideLegend"></tro-legend-board>
+	</foreignObject>
+</svg>
+<div class="consequences" *ngIf="mapType == consequenceType" [ngStyle]="{'background-image': background }"></div>

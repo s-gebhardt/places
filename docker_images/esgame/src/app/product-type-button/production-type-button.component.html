@@ -1,0 +1,8 @@
+<div class="img-wrapper" [ngStyle]="{ backgroundColor: productionType.fieldColor }">
+	<img class="img"  [src]="productionType.image"
+		*ngIf="productionType.image" />
+	<div class="img" *ngIf="!productionType.image" [ngStyle]="{ backgroundColor: productionType.fieldColor }">{{
+		("production_type_" + productionType.id | translate).split(' ')[0].charAt(0) }} {{ ("production_type_" +
+		productionType.id | translate).split(' ')[1]?.charAt(0) }}</div>
+</div>
+<p translate>{{ "production_type_" + productionType.id }}</p>

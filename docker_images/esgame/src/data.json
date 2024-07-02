@@ -1,0 +1,383 @@
+{
+	"title": {
+		"de": "Kompromiss: Landwirtschaftsedition!",
+		"en": "Tradeoff: Agriculture Edition V.2!",
+		"nl": "SPEL-DID!",
+		"pt": null
+	},
+	"mapMode": "svg",
+	"imageMode": false,
+	"elementSize": 1,
+	"highlightColor": "#f0ff1b",
+	"infiniteLevels": true,
+	"gameBoardColumns": 28,
+	"minValue": 0,
+    "maxValue": 100,
+	"minSelected": 1,
+    "defaultProductionType": "61",
+	"gameBoardRows": 29,
+	"calcUrl":"https://esgame-calculation.containers.wurnet.nl/esgame",
+	"productionTypes": [
+		{
+			"id": "10",
+			"name": {
+				"de": "Extensives Ackerland",
+				"en": "Extensive Arable Farm",
+				"nl": "Extensieve Akkerbouw",
+				"pt": null
+			},
+			"fieldColor": "#FFC775",
+			"urlToIcon": "./assets/images/ext_arable.png",
+			"maxElements": 700
+		},
+		{
+			"id": "30",
+			"name": {
+				"de": "Intensives Ackerland",
+				"en": "Intensive Arable Farm",
+				"nl": "Intensieve Akkerbouw",
+				"pt": null
+			},
+			"fieldColor": "#FF9900",
+			"urlToIcon": "./assets/images/int_arable.png",
+			"maxElements": 700
+		},
+		{
+			"id": "20",
+			"name": {
+				"de": "Extensive Viehzucht",
+				"en": "Extensive Livestock Farm",
+				"nl": "Extensieve Veeteelt",
+				"pt": null
+			},
+			"fieldColor": "#FEA8E7",
+			"urlToIcon": "./assets/images/ext_livestock.png",
+			"maxElements": 700
+		},
+		{
+			"id": "40",
+			"name": {
+				"de": "Intensive Viehzucht",
+				"en": "Intensive Livestock Farm",
+				"nl": "Intensieve Veeteelt",
+				"pt": null
+			},
+			"fieldColor": "#FE42CD",
+			"urlToIcon": "./assets/images/int_livestock.png",
+			"maxElements": 700
+		},
+		{
+			"id": "60",
+			"name": {
+				"de": "Zusätzliche Natur",
+				"en": "Extra Nature",
+				"nl": "Nieuwe Natuur",
+				"pt": null
+			},
+			"fieldColor": "#21AF24",
+			"urlToIcon": "./assets/images/extra_nature.png",
+			"maxElements": 700
+		},
+		{
+			"id": "50",
+			"name": {
+				"de": "Agropark",
+				"en": "Agropark",
+				"nl": "Agropark",
+				"pt": null
+			},
+			"fieldColor": "#8968CD",
+			"urlToIcon": "./assets/images/agropark.png",
+			"maxElements": 700
+		}
+	],
+	"maps": [
+		{
+			"id": "1",
+			"name": {
+				"de": "Zonen",
+				"en": "Zones",
+				"nl": "Zones",
+				"pt": null
+			},
+			"gradient": "",
+			"productionTypes": [],
+			"gameBoardType": "Drawing",
+			"urlToData": "./assets/images/New_hexagons.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "2",
+			"name": {
+				"de": "Extensives Ackerland",
+				"en": "Extensive Arable Farm",
+				"nl": "Extensieve Akkerbouw",
+				"pt": null
+			},
+			"gradient": "yellow",
+			"productionTypes": [
+				"10"
+			],
+			"gameBoardType": "Suitability",
+			"urlToData": "./assets/images/suit_arable_ext_norm2.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "3",
+			"name": {
+				"de": "Intensives  Ackerland",
+				"en": "Intensive Arable Farm",
+				"nl": "Intensieve Akkerbouw",
+				"pt": null
+			},
+			"gradient": "yellow",
+			"productionTypes": [
+				"30"
+			],
+			"gameBoardType": "Suitability",
+			"urlToData": "./assets/images/suit_arable_int_norm.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "4",
+			"name": {
+				"de": "Extensive Viehzucht",
+				"en": "Extensive Livestock Farm",
+				"nl": "Extensieve Veeteelt",
+				"pt": null
+			},
+			"gradient": "yellow",
+			"productionTypes": [
+				"20"
+			],
+			"gameBoardType": "Suitability",
+			"urlToData": "./assets/images/suit_livestock_ext_norm2.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "5",
+			"name": {
+				"de": "Intensive Viehzucht",
+				"en": "Intensive Livestock Farm",
+				"nl": "Intensieve Veeteelt",
+				"pt": null
+			},
+			"gradient": "yellow",
+			"productionTypes": [
+				"40"
+			],
+			"gameBoardType": "Suitability",
+			"urlToData": "./assets/images/suit_livestock_int_norm2.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "7",
+			"name": {
+				"de": "Agropark",
+				"en": "Agropark",
+				"nl": "Agropark",
+				"pt": null
+			},
+			"gradient": "yellow",
+			"productionTypes": [
+				"50"
+			],
+			"gameBoardType": "Suitability",
+			"urlToData": "./assets/images/suit_agro_WMCF_zone.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "8",
+			"name": {
+				"de": "Zusätzliche Natur",
+				"en": "Extra Nature",
+				"nl": "Nieuwe Natuur",
+				"pt": null
+			},
+			"gradient": "yellow",
+			"productionTypes": [
+				"60"
+			],
+			"gameBoardType": "Suitability",
+			"urlToData": "./assets/images/suit_extra_nature_NEWzone.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "11",
+			"name": {
+				"de": "Menschliche Gesundheit",
+				"en": "Human health",
+				"nl": "Luchtvervuiling in steden",
+				"pt": null
+			},
+			"gradient": "red",
+			"productionTypes": [
+				"10",
+				"20",
+				"30",
+				"40"
+			],
+			"gameBoardType": "Consequence",
+			"urlToData": "./assets/images/Consequence_1_Clip.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "22",
+			"name": {
+				"de": "Nährstoffbelastung",
+				"en": "Nutrient Pollution",
+				"nl": "Verontreiniging door nutriënten in de natuur",
+				"pt": null
+			},
+			"gradient": "red",
+			"productionTypes": [
+				"10",
+				"20",
+				"30",
+				"40"
+			],
+			"gameBoardType": "Consequence",
+			"urlToData": "./assets/images/Consequence_2_Clip.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "33",
+			"name": {
+				"de": "Wasserqualität",
+				"en": "Water eutrophication",
+				"nl": "Watervervuiling door nutriënten",
+				"pt": null
+			},
+			"gradient": "red",
+			"productionTypes": [
+				"10",
+				"20",
+				"30",
+				"40"
+			],
+			"gameBoardType": "Consequence",
+			"urlToData": "./assets/images/Consequence_3_Clip.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "44",
+			"name": {
+				"de": "Wasserverfügbarkeit",
+				"en": "Water availability",
+				"nl": "Watertekort in de natuur",
+				"pt": null
+			},
+			"gradient": "red",
+			"productionTypes": [
+				"10",
+				"20",
+				"30",
+				"40"
+			],
+			"gameBoardType": "Consequence",
+			"urlToData": "./assets/images/Consequence_4_Clip.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "55",
+			"name": {
+				"de": "Lebensraumzusammenhalt",
+				"en": "Habitat cohesion",
+				"nl": "Versnippering van habitats",
+				"pt": null
+			},
+			"gradient": "red",
+			"productionTypes": [
+				"10",
+				"20",
+				"30",
+				"40"
+			],
+			"gameBoardType": "Consequence",
+			"urlToData": "./assets/images/Consequence_4_Clip.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "66",
+			"name": {
+				"de": "Erholungswert",
+				"en": "Recreational value",
+				"nl": "Verlies van recreatieve waarde",
+				"pt": null
+			},
+			"gradient": "red",
+			"productionTypes": [
+				"10",
+				"20",
+				"30",
+				"40"
+			],
+			"gameBoardType": "Consequence",
+			"urlToData": "./assets/images/Consequence_4_Clip.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "999",
+			"name": {
+				"de": "Background",
+				"en": "Background",
+				"nl": "Achtergrond",
+				"pt": null
+			},
+			"gradient": "custom",
+			"productionTypes": [],
+			"gameBoardType": "Background",
+			"urlToData": "./assets/images/New_Land_use_only.tif",
+			"customColorId": "8685a932-d972-438c-bf33-db4294266c7e"
+		}
+	],
+	"customColors": [
+		{
+			"id": "8685a932-d972-438c-bf33-db4294266c7e",
+			"colors": [
+				{
+					"number": 2,
+					"color": "#9C9C9C"
+				},
+				{
+					"number": 3,
+					"color": "#4E4E4E"
+				},
+				{
+					"number": 4,
+					"color": "#7ab6f5C0"
+				},
+				{
+					"number": 5,
+					"color": "#267300"
+				},
+				{
+					"number": 6,
+					"color": "#267300"
+				},
+				{
+					"number": 7,
+					"color": "#267300"
+				},
+				{
+					"number": 8,
+					"color": "#267300"
+				}
+			]
+		}
+	],
+	"basicInstructions": {
+		"de": "Ziel des Spiels ist es, Betriebe unterschiedlicher Bewirtschaftungsintensität und Bewirtschaftungsart in einer Landschaft zu verteilen. In Runde 1 besteht das Ziel darin, die leeren Flächen in der Landschaft mit landwirtschaftlichen Betrieben auf der Grundlage von Karten zu füllen, die deren relative Produktivität zeigen. Dunklere Farben stehen für eine höhere Produktivität, aber beachten Sie, dass die Skalen für jeden Betriebstyp unterschiedlich sind. Ihr müsst nicht alle Lücken füllen, sondern nur so viel, wie ihr könnt und wollt. Klicken Sie mit der rechten Maustaste auf ein Element, um es zu entfernen. Wenn Sie mit Ihrem Produktionsergebnis zufrieden sind, klicken Sie auf die Schaltfläche Runde 2.\n\nSteuerelemente:\nLinksklick: Füllen Sie den Raum mit dem aktuell ausgewählten Bauernhof. Du kannst mit der linken Maustaste klicken und über die Karte ziehen, um mehrere Felder auf einmal zu füllen.\nRechtsklick: Entfernen Sie die Farm aus dem aktuellen Bereich. Sie können mit der rechten Maustaste klicken und über die Karte ziehen, um mehrere Farmen auf einmal zu entfernen.\nKlicken Sie auf einen Farmtyp: Ändern Sie den Farmtyp, den Sie platzieren möchten.\nKlicken Sie auf eine Seitenkarte: Zeigen Sie diese Karte in der Mitte an, um sie in einem größeren Format zu sehen.",
+		"en": "The game target is to allocate farms of different management intensities and farming types in a landscape. In Round 1, the objective is to fill the blank spaces in the landscape with farms based on maps that show their relative productivity. Darker colors reflect higher productivity, but note that scales differ for each farm type. You don't have to fill all spaces, just as much as you can and want. Right-click any element to make it disappear. When you are satisfied with your production score click on the Round 2 button.\n\nControls:\nLeft click: Fill the space with the currently selected farm. You can left-click and drag over the map to fill multiple spaces at once.\nRight click: Remove the farm from the current space. You can right-click and drag over the map to remove multiple farms at once.\nClick on a farm type: Change the farm type you want to place.\nClick on a side map: Display this map at the center to see it in a bigger size.",
+		"nl": "Het doel van het spel is om boerderijen met verschillende managementintensiteiten en landbouwtypes in het landschap in te delen. In ronde 1 is het de bedoeling om de lege plekken in het landschap op te vullen met landbouwtypes op basis van kaarten die hun relatieve productiviteit tonen. Donkere kleuren geven een hogere productiviteit weer, maar let op: de schalen verschillen per boerderijtype. Je hoeft niet alle ruimtes te vullen, alleen zoveel als je kunt en wilt. Als je tevreden bent met je productiescore klik je op de knop Ronde 2. \n\nKlik met de linkermuisknop: Vul de ruimte met het op dat moment geselecteerde landbouwtype. Je kunt met de linkermuisknop klikken en slepen over de kaart om meerdere ruimtes tegelijk te vullen.\n\nRechtsklik: Verwijder het landbouwtype van de huidige ruimte. Je kunt met de rechtermuisknop klikken en slepen over de kaart om meerdere gebieden tegelijk te verwijderen.\n\nKlik op het landbouwtypepictogram of op een van de geschiktheidskaarten aan de linkerkant: Selecteer of wijzig welk landbouwtype je in de kaart wilt plaatsen. \n\nKlik op een zijkaart: Geef deze kaart weer op de achtergrond van de hoofdkaart.",
+		"pt": null
+	},
+	"advancedInstructions": {
+		"de": "Alle Betriebsformen haben zur Produktivität beigetragen, aber sie haben auch negative Auswirkungen auf die lokalen Ökosystemleistungen. Obwohl Ihnen diese Informationen in Runde 1 nicht zur Verfügung standen, waren die negativen Auswirkungen dennoch vorhanden. Sehen Sie sich die neuen Karten an, die die negativen Auswirkungen Ihrer Entscheidungen auf eine Reihe von Ökosystemleistungen veranschaulichen. Ihr Nettoergebnis der Runde 1 berücksichtigt diese externen Effekte. Traurig! \n\nIhr Ziel in Runde 2 wird es sein, die aufgetretenen Kompromisse zu minimieren. Dazu wechseln Sie die Betriebstypen aus (indem Sie sie anklicken) und überprüfen die räumliche Verteilung ihrer Auswirkungen auf die Ökosystemleistungen. Das Spiel ist beendet, wenn Sie mit Ihrer Nettopunktzahl zufrieden sind. Konnten Sie die externen Effekte im Vergleich zu Runde 1 reduzieren? Bedeutete das auch eine Verringerung der Produktivität? \n\nBotschaft zum Mitnehmen: Landwirtschaftliche Praktiken zielen darauf ab, die Produktivität auf den Parzellen zu steigern, aber sie können Veränderungen im Zustand und in der Funktionsweise des Ökosystems bewirken, die weit über das Betriebsgelände hinausgehen. Die Prozesse, die durch die landwirtschaftliche Bodennutzung ausgelöst werden, hängen nicht nur von der Anzahl der landwirtschaftlichen Betriebe mit unterschiedlicher Bewirtschaftungsintensität in einer Landschaft ab, sondern in hohem Maße auch von der Lage und der räumlichen Anordnung dieser Betriebe im Verhältnis zu benachbarten Landnutzungen.\n",
+		"en": "All farm types contributed to the productivity but they also have negative impacts on local ecosystems services. Although this information was not available to you during Round 1, the negative effects still took place. Look at the new maps that illustrate the negative impacts of your choices on a set of ecosystem services. Your Round 1 Net Score integrates these externalities. Sad! \n\nYour objective in Round 2 will be to minimize the encountered trade-offs. Do this by switching out farm types (by clicking on them) and checking the spatial distribution of their impacts on the ecosystem services. The game is finished when you are satisfied with your net score. Were you able to reduce the externalities relative to Round 1? Did that mean reducing productivity as well? \n\nTake home message: Agricultural practices aim to increase the productivity on the parcels, but they can induce changes in the ecosystem condition and functioning that stretch way beyond the farm grounds. The processes that are triggered by agricultural land use depend not only on the amount of farms with different management intensities in a landscape, but largely also on the location and spatial arrangement of these farms relative to neighboring land uses.\n",
+		"nl": "Alle landbouwtypes hebben bijgedragen aan de productiviteit, maar ze hebben ook negatieve effecten op andere landschapsfuncties (ecosysteemdiensten). Hoewel je tijdens ronde 1 niet over deze informatie beschikte, vonden de negatieve effecten toch plaats.\n\nKijk naar de nieuwe kaarten aan de rechterkant die enkele negatieve gevolgen van je keuzes illustreren. Je Ronde 1 score wordt beïnvloed door deze externe effecten. Triest! \n\nJe doel in Ronde 2 is om de trade-offs te minimaliseren en de winsten en verliezen in evenwicht te brengen. Doe dit door de verdeling van de landbouwtypes op de kaart te veranderen in overeenstemming met de ruimtelijke verdeling van hun gevolgen. \n\nHet spel is afgelopen als je tevreden bent met je netto score of als je tijd op is! Ben je in staat om de externe effecten te verminderen ten opzichte van ronde 1? Misschien moet je ook de productiviteit verminderen. \n\nBoodschap mee naar huis nemen: Landbouwpraktijken hebben tot doel de productiviteit op de landbouwpercelen te verhogen, maar ze kunnen veranderingen in de toestand en het functioneren van het landschap teweegbrengen die veel verder reiken dan het landbouwareaal. De processen die in gang worden gezet door agrarisch landgebruik hangen niet alleen af van de hoeveelheid landbouwpercelen met verschillende managementintensiteiten in een landschap, maar grotendeels ook van de locatie en ruimtelijke ordening van deze landbouwbedrijven ten opzichte van naburig landgebruik.",
+		"pt": null
+	},
+	"basicInstructionsImageUrl": "",
+	"advanccedInstructionsImageUrl": ""
+}

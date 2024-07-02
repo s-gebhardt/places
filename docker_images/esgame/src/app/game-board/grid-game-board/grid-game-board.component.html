@@ -1,0 +1,2 @@
+<tro-field *ngFor="let field of fields" [field]="field" imageMode [clickable]="clickMode == GameBoardClickMode.Field && !readOnly"></tro-field>
+<tro-legend-board *ngIf="legend" [legendData]="legend" [isSmall]="hideLegend"></tro-legend-board>

@@ -1,0 +1,219 @@
+{
+	"title": {
+		"de": "Tradeoff: Agriculture Edition",
+		"en": "Tradeoff: Agriculture Edition",
+		"nl": null,
+		"pt": null
+	},
+	"mapMode": "grid",
+	"imageMode": true,
+	"elementSize": 2,
+	"highlightColor": "#00E0FF",
+	"infiniteLevels": false,
+	"gameBoardColumns": 28,
+	"gameBoardRows": 29,
+	"calcUrl": "",
+	"productionTypes": [
+		{
+			"id": "10",
+			"name": {
+				"de": "Ackerland",
+				"en": "Arable land",
+				"nl": null,
+				"pt": null
+			},
+			"fieldColor": "#FFF",
+			"urlToIcon": "https://github.com/mlacayoemery/esgame/blob/master/images/corn.png?raw=true",
+			"maxElements": 4
+		},
+		{
+			"id": "20",
+			"name": {
+				"de": "Viehzucht",
+				"en": "Livestock",
+				"nl": null,
+				"pt": null
+			},
+			"fieldColor": "#FFF",
+			"urlToIcon": "https://raw.githubusercontent.com/mlacayoemery/esgame/master/images/cow.png",
+			"maxElements": 4
+		}
+	],
+	"maps": [
+		{
+			"id": "2",
+			"name": {
+				"de": "Ackerland",
+				"en": "Arable land",
+				"nl": null,
+				"pt": null
+			},
+			"gradient": "green",
+			"productionTypes": [
+				"10"
+			],
+			"gameBoardType": "Suitability",
+			"urlToData": "/assets/images/esgame_img_ag.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "3",
+			"name": {
+				"de": "Viehzucht",
+				"en": "Livestock",
+				"nl": null,
+				"pt": null
+			},
+			"gradient": "orange",
+			"productionTypes": [
+				"20"
+			],
+			"gameBoardType": "Suitability",
+			"urlToData": "/assets/images/esgame_img_ranch.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "4",
+			"name": {
+				"de": "Kohlenstoff",
+				"en": "Carbon",
+				"nl": null,
+				"pt": null
+			},
+			"gradient": "yellow",
+			"productionTypes": [
+				"10"
+			],
+			"gameBoardType": "Consequence",
+			"urlToData": "/assets/images/esgame_img_ag_carbon.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "5",
+			"name": {
+				"de": "Lebensraum",
+				"en": "Habitat",
+				"nl": null,
+				"pt": null
+			},
+			"gradient": "purple",
+			"productionTypes": [
+				"10"
+			],
+			"gameBoardType": "Consequence",
+			"urlToData": "/assets/images/esgame_img_ag_habitat.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "6",
+			"name": {
+				"de": "Wasser",
+				"en": "Water",
+				"nl": null,
+				"pt": null
+			},
+			"gradient": "blue",
+			"productionTypes": [
+				"10"
+			],
+			"gameBoardType": "Consequence",
+			"urlToData": "/assets/images/esgame_img_ag_water.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "7",
+			"name": {
+				"de": "Jagd",
+				"en": "Hunt",
+				"nl": null,
+				"pt": null
+			},
+			"gradient": "red",
+			"productionTypes": [
+				"10"
+			],
+			"gameBoardType": "Consequence",
+			"urlToData": "/assets/images/esgame_img_ag_hunt.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "8",
+			"name": {
+				"de": "Kohlenstoff",
+				"en": "Carbon",
+				"nl": null,
+				"pt": null
+			},
+			"gradient": "yellow",
+			"productionTypes": [
+				"20"
+			],
+			"gameBoardType": "Consequence",
+			"urlToData": "/assets/images/esgame_img_ranch_carbon.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "9",
+			"name": {
+				"de": "Lebensraum",
+				"en": "Habitat",
+				"nl": null,
+				"pt": null
+			},
+			"gradient": "purple",
+			"productionTypes": [
+				"20"
+			],
+			"gameBoardType": "Consequence",
+			"urlToData": "/assets/images/esgame_img_ranch_habitat.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "10",
+			"name": {
+				"de": "Wasser",
+				"en": "Water",
+				"nl": null,
+				"pt": null
+			},
+			"gradient": "blue",
+			"productionTypes": [
+				"20"
+			],
+			"gameBoardType": "Consequence",
+			"urlToData": "/assets/images/esgame_img_ranch_water.tif",
+			"customColorId": ""
+		},
+		{
+			"id": "11",
+			"name": {
+				"de": "Jagd",
+				"en": "Hunt",
+				"nl": null,
+				"pt": null
+			},
+			"gradient": "red",
+			"productionTypes": [
+				"20"
+			],
+			"gameBoardType": "Consequence",
+			"urlToData": "/assets/images/esgame_img_ranch_hunt.tif",
+			"customColorId": ""
+		}
+	],
+	"customColors": [],
+	"basicInstructions": {
+		"de": "Die Anleitung auf Deutsch",
+		"en": "In round 1 your objective is to generate as much income as possible by placing 4 corn farms (select \"Make: Agriculture\", and then click chosen location with mouse) and 4 cattle ranches (select \"Make: Ranching\"). Each farm and ranch covers 4 squares. Darker colors reflect higher returns, but note that scales differ for each activity. Re-click any element to make it disappear. \n\n When you are satisfied with your score (you should reach a score of 9725, although 9775 is even better) click on the Round 2 button.",
+		"nl": null,
+		"pt": null
+	},
+	"advancedInstructions": {
+		"de": "Die Anleitung der 2. Runde auf Deutsch",
+		"en": "Farms and ranches generate income but they also have negative impacts on local ecosystems and species. Although this information was not available to you during Round 1, the negative effects still took place. Look at the four new maps that illustrate the negative impacts of your choices on four ecosystem services. Your Round 1 Net Score integrates these externalities. Sad!\n\nYour objective in Round 2 will be to maximise your Net Score. Do this by removing your farms and ranches (by clicking on them) and then re-making them in places that strike a better balance between their revenue and externalities (costs). Remember to use the \"Make\" toggle to switch between making ranches and farms. Also note that the scale of the costs varies depending on the activity.\n\nThe game is finished when you are satisfied with your net score. Were you able to reduce the externalities relative to Round 1? Did that mean reducing income as well? You should be able to reach a Net Score of at least 4100, but 4600 is even better. \n\nake home message: Decisions that impact natural ressources sometimes do not consider the full value of what is being lost when land is converted for commercial purposes. In the absence of other sources of information, decisions will seek to generate income (Round 1). The ecosystem service approach can help by providing additional information (Round 2) that can then become an integral part of this planning process, thus creating a better balance of values for people and nature.",
+		"nl": null,
+		"pt": null
+	},
+	"basicInstructionsImageUrl": "",
+	"advanccedInstructionsImageUrl": ""
+}

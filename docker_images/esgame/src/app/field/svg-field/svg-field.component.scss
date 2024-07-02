@@ -1,0 +1,31 @@
+:host {
+    fill: transparent;
+
+
+    &.show-stroke.--is-editable {
+        stroke: darkslategray;
+        stroke-width: .2px;
+    }
+
+    &.--is-highlighted.--is-editable {
+        stroke-width: 2px;
+    }
+
+    &.--missing-selection {
+        animation: blink 0.5s infinite;
+    }
+}
+
+@keyframes blink {
+    0% {
+        fill: transparent;
+
+    }
+    60% {
+        fill: #f00;
+    }
+
+    100% {
+        fill: transparent;
+    }
+}

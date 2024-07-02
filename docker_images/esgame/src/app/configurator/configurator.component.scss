@@ -1,0 +1,42 @@
+.configurator-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 15px;
+	align-items: start;
+}
+
+.color-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr 1fr;
+	gap: 15px;
+	align-items: start;
+}
+
+.--gap-right {
+	margin-right: 15px;
+}
+
+.--full {
+	grid-column: 1 / span 2;
+}
+
+.--next-line {
+	grid-column-start: 1;
+}
+
+.--justify-start {
+	justify-self: start;
+}
+
+.--justify-end {
+	justify-self: end;
+}
+
+.--align-center {
+	align-self: center;
+}
+
+.flex-column {
+	display: flex;
+	flex-direction: column;
+}

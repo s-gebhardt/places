@@ -1,0 +1,312 @@
+<div class="container">
+	<h1>{{ 'configurator' | translate }}</h1>
+	<mat-stepper linear #stepper [formGroup]="formGroup">
+		<mat-step>
+			<ng-template matStepLabel>{{ 'general' | translate}}</ng-template>
+			<div class="configurator-grid">
+				<div class="--full">
+					{{ 'existing configuration' | translate }} <input type="file" (change)="onFileSelected($event)" accept=".json">
+				</div>
+				<ng-container formGroupName="title">
+					<mat-form-field *ngFor="let lang of languages">
+						<mat-label>{{ 'Game name' | translate }} ({{lang}})</mat-label>
+						<input type="text" matInput [formControlName]="lang" required>
+					</mat-form-field>
+				</ng-container>
+				<ng-container formGroupName="basicInstructions">
+					<mat-form-field *ngFor="let lang of languages">
+						<mat-label>{{ 'Basic Instructions' | translate }} ({{lang}})</mat-label>
+						<textarea type="text" matInput name="basic-instructions" [formControlName]="lang" required>
+						</textarea>
+					</mat-form-field>
+				</ng-container>
+				<mat-form-field class="--full">
+					<mat-label>{{ 'basic instructions url' | translate }}</mat-label>
+					<input type="url" matInput name="basic-instructions" formControlName="basicInstructionsImageUrl" />
+				</mat-form-field>
+				<ng-container formGroupName="advancedInstructions">
+					<mat-form-field *ngFor="let lang of languages">
+						<mat-label>{{ 'Advanced Instructions' | translate }} ({{lang}})</mat-label>
+						<textarea type="text" matInput name="advanced-instructions" [formControlName]="lang" required>
+						</textarea>
+					</mat-form-field>
+				</ng-container>
+				<mat-form-field class="--full">
+					<mat-label>{{ 'advanced instructions url' | translate }}</mat-label>
+					<input type="url" matInput name="basic-instructions" formControlName="advancedInstructionsImageUrl" />
+				</mat-form-field>
+				<mat-form-field class="--next-line">
+					<mat-label>{{ 'Map type' | translate }}</mat-label>
+					<mat-select formControlName="mapMode" required>
+						<mat-option value="svg">
+							{{ 'Zones' | translate }}
+						</mat-option>
+						<mat-option value="grid">
+							{{ 'Fields' | translate }}
+						</mat-option>
+					</mat-select>
+					<mat-hint>{{ 'readme hint' | translate }}</mat-hint>
+				</mat-form-field>
+				
+				<mat-form-field>
+					<mat-label>{{ 'Calculation URL' | translate}}</mat-label>
+					<input type="text" matInput name="calculation-url" formControlName="calcUrl" required>
+					<mat-hint>{{ 'calc url hint' | translate }}</mat-hint>
+				</mat-form-field>
+				<button mat-button matStepperNext class="--full --next-line --justify-end">{{'Next' | translate}}</button>
+			</div>
+		</mat-step>
+		<mat-step>
+			<ng-template matStepLabel>{{ 'Gameboard' | translate }}</ng-template>
+			<div class="configurator-grid">
+				<mat-form-field>
+					<mat-label>{{ 'maps-width' | translate}}</mat-label>
+					<input type="number" matInput placeholder="0" name="maps-width" formControlName="gameBoardColumns"
+						required>
+				</mat-form-field>
+				<mat-form-field>
+					<mat-label>{{ 'maps-height' | translate}}</mat-label>
+					<input type="number" matInput placeholder="0" name="maps-height" formControlName="gameBoardRows"
+						required>
+				</mat-form-field>
+				<mat-form-field>
+					<mat-label>{{ 'highlight-color' | translate}}</mat-label>
+					<input type="text" matInput name="highlight-color" formControlName="highlightColor" required>
+					<mat-hint>{{ 'hex hint' | translate }}</mat-hint>
+				</mat-form-field>
+				<mat-form-field>
+					<mat-label>{{ 'selection-size' | translate}}</mat-label>
+					<input type="number" matInput placeholder="0" name="selection-size" formControlName="elementSize"
+						required>
+					<mat-hint>{{ 'selection size hint' | translate }}</mat-hint>
+				</mat-form-field>
+				<mat-form-field>
+					<mat-label>{{ 'min value' | translate}}</mat-label>
+					<input type="u" matInput name="min-value" formControlName="minValue" required>
+				</mat-form-field>
+				<mat-form-field>
+					<mat-label>{{ 'max value' | translate}}</mat-label>
+					<input type="text" matInput name="max-value" formControlName="maxValue" required>
+				</mat-form-field>
+				<mat-checkbox formControlName="infiniteLevels">{{ 'infinite-levels' | translate}}</mat-checkbox>
+				<mat-checkbox formControlName="imageMode">{{ 'Image Mode' | translate}}</mat-checkbox>
+				<div class="flex-column">
+					<label>{{ 'min-selected' | translate}}</label>
+					<mat-slider [displayWith]="formatLabel" discrete min="0" max="100" step="1" value="0">
+						<input formControlName="minSelected" matSliderThumb>
+					</mat-slider>
+					<label>{{formGroup.get('minSelected')?.value || 0}}%</label>
+				</div>
+				<button mat-button class="--next-line --justify-start" matStepperPrevious>{{'Back' | translate}}</button>
+				<button mat-button class="--justify-end" matStepperNext>{{'Next' | translate}}</button>
+			</div>
+		</mat-step>
+		<mat-step>
+			<ng-template matStepLabel>{{ 'production types' | translate }}</ng-template>
+			<div class="configurator-grid">
+				<ng-container formArrayName="productionTypes">
+					<ng-container *ngFor="let type of productionTypes.controls; let i = index" [formGroupName]="i">
+						<h3 class="--next-line">{{ 'production type' | translate }} {{ i + 1 }}</h3>
+						<button class="--justify-start --align-center" type="button" mat-raised-button
+							(click)="removeProductionType(i)" color="primary" aria-label="Remove production type">
+							<mat-icon>delete</mat-icon> {{ 'remove-production-type' | translate}}
+						</button>
+						<ng-container formGroupName="name">
+							<mat-form-field *ngFor="let lang of languages">
+								<mat-label>{{ 'name' | translate}} ({{lang}})</mat-label>
+								<input type="text" matInput name="agTypes-name-{{i+lang}}" [formControlName]="lang"
+									required>
+							</mat-form-field>
+						</ng-container>
+						<mat-form-field>
+							<mat-label>{{ 'id' | translate }}</mat-label>
+							<input type="number" matInput formControlName="id" required>
+							<mat-hint>{{ 'unique hint' | translate }}</mat-hint>
+						</mat-form-field>
+						<mat-form-field>
+							<mat-label>{{ 'field-color' | translate}}</mat-label>
+							<input type="text" matInput name="highlight-color-{i}" formControlName="fieldColor"
+								required>
+							<mat-hint>{{ 'hex hint' | translate }}</mat-hint>
+						</mat-form-field>
+						<mat-form-field>
+							<mat-label>{{ 'icon-url' | translate}}</mat-label>
+							<input type="url" matInput name="icon-url-{i}" placeholder="https://..."
+								formControlName="urlToIcon">
+							<mat-hint>{{ 'icon url hint' | translate }}</mat-hint>
+						</mat-form-field>
+						<mat-form-field>
+							<mat-label>{{ 'max-elements' | translate}}</mat-label>
+							<input type="number" matInput name="max-elements-{i}" formControlName="maxElements"
+								required>
+							<mat-hint>{{ 'max elements hint' |  translate }}</mat-hint>
+						</mat-form-field>
+					</ng-container>
+				</ng-container>
+				<button type="button" class="--full" mat-raised-button (click)="addProductionType()" color="primary"
+					aria-label="Add map">
+					<mat-icon>add</mat-icon> {{ 'new-production-type' | translate}}
+				</button>
+				<button mat-button class="--next-line --justify-start" matStepperPrevious>{{'Back' | translate}}</button>
+				<button mat-button matStepperNext class="--justify-end">{{'Next' | translate}}</button>
+			</div>
+		</mat-step>
+		<mat-step>
+			<ng-template matStepLabel>{{ 'Custom Colors' | translate }}</ng-template>
+			<div class="configurator-grid">
+				<p class="--full" translate>custom color explanation</p>
+				<ng-container formArrayName="customColors">
+					<ng-container *ngFor="let color of customColors.controls; let i = index" [formGroupName]="i">
+						<h3 class="--next-line">{{ 'Custom Color Set' | translate }} {{ i + 1 }}</h3>
+						<div class="--align-center">
+							<button class="--gap-right" type="button" mat-raised-button (click)="removeColorSet(i)"
+								color="primary" aria-label="Remove color">
+								<mat-icon>delete</mat-icon> {{ 'remove-color-set' | translate}}
+							</button>
+							<button type="button" mat-raised-button (click)="addColor(color)" color="primary"
+								aria-label="Add color">
+								<mat-icon>add</mat-icon> {{ 'new-color' | translate}}
+							</button>
+						</div>
+						<div class="color-grid --full" formArrayName="colors">
+							<ng-container *ngFor="let c of getColorsArray(color).controls; let j = index"
+								[formGroupName]="j">
+								<mat-form-field>
+									<mat-label>{{ 'Value in TIFF' | translate }}</mat-label>
+									<input type="number" matInput formControlName="number" />
+									<mat-hint>{{ 'tiff value hint' | translate }}</mat-hint>
+								</mat-form-field>
+								<mat-form-field>
+									<mat-label>{{ 'Color' | translate }}</mat-label>
+									<input type="text" matInput formControlName="color" />
+									<mat-hint>{{ 'hex hint alpha' | translate }}</mat-hint>
+								</mat-form-field>
+								<button class="--justify-start" type="button" mat-raised-button
+									(click)="removeColor(color, j)" color="primary" aria-label="Remove map">
+									<mat-icon>delete</mat-icon> {{ 'remove-color' | translate}}
+								</button>
+							</ng-container>
+						</div>
+					</ng-container>
+				</ng-container>
+				<button class="--full" type="button" mat-raised-button (click)="addCustomColors()" color="primary"
+					aria-label="Add color">
+					<mat-icon>add</mat-icon> {{ 'new-custom-color' | translate}}
+				</button>
+				<button class="--justify-start" mat-button matStepperPrevious>{{'Back' | translate}}</button>
+				<button class="--justify-end" mat-button matStepperNext>{{'Next'|translate}}</button>
+			</div>
+		</mat-step>
+		<mat-step>
+			<ng-template matStepLabel>{{ 'maps' | translate}}</ng-template>
+			<div class="configurator-grid">
+				<p class="--full" translate>maps explanation</p>
+				<ng-container formArrayName="maps">
+					<ng-container *ngFor="let map of maps.controls; let i = index" [formGroupName]="i">
+						<h3 class="--next-line">{{ 'map' | translate }} {{ i + 1 }}</h3>
+						<button class="--justify-start --align-center" type="button" mat-raised-button
+							(click)="removeMap(i)" color="primary" aria-label="Remove map">
+							<mat-icon>delete</mat-icon> {{ 'remove-map' | translate}}
+						</button>
+						<ng-container formGroupName="name">
+							<mat-form-field *ngFor="let lang of languages">
+								<mat-label>{{ 'name' | translate}} ({{lang}})</mat-label>
+								<input type="text" matInput placeholder="0" name="maps-name-{{i + lang}}"
+									[formControlName]="lang" required>
+							</mat-form-field>
+						</ng-container>
+						<mat-form-field>
+							<mat-label>{{ 'id' | translate }}</mat-label>
+							<input type="number" matInput formControlName="id" required>
+							<mat-hint>{{ 'unique hint' | translate }}</mat-hint>
+						</mat-form-field>
+						<mat-form-field>
+							<mat-label>{{ 'game-board-type' | translate}}</mat-label>
+							<mat-select formControlName="gameBoardType">
+								<mat-option value="Suitability">
+									{{'Suitability' | translate}}
+								</mat-option>
+								<mat-option value="Consequence">
+									{{'Consequence' | translate}}
+								</mat-option>
+								<mat-option *ngIf="this.formGroup.get('mapMode')!.value == 'svg'" value="Drawing">
+									{{'Zones' | translate}}
+								</mat-option>
+								<mat-option *ngIf="this.formGroup.get('mapMode')!.value == 'svg'" value="Background">
+									{{'Background' | translate}}
+								</mat-option>
+							</mat-select>
+						</mat-form-field>
+						<mat-form-field>
+							<mat-label>{{ 'map-url' | translate}}</mat-label>
+							<input type="url" matInput placeholder="https://..." name="map-{{i}}-url"
+								formControlName="urlToData" required />
+							<mat-hint>{{ 'tiff url hint' | translate }}</mat-hint>
+						</mat-form-field>
+						<mat-form-field>
+							<mat-label>{{ 'production-types' | translate}}</mat-label>
+							<mat-select formControlName="productionTypes" multiple>
+								<mat-option *ngFor="let type of productionTypes.controls"
+									[value]="type.get('id')!.value">{{type.get('name')!.get('en')!.value}}</mat-option>
+							</mat-select>
+							<mat-hint *ngIf="productionTypes.length == 0">
+								{{'no-production-types' | translate}}
+							</mat-hint>
+						</mat-form-field>
+						<mat-form-field class="--next-line">
+							<mat-label>{{ 'map-Color' | translate}}</mat-label>
+							<mat-select formControlName="gradient">
+								<mat-option *ngFor="let gradient of gradients" [value]="gradient">
+									{{ gradient | translate }}
+								</mat-option>
+								<mat-option value="custom">
+									{{ 'custom' | translate }}
+								</mat-option>
+							</mat-select>
+							<mat-hint>{{'map color hint' | translate }}</mat-hint>
+						</mat-form-field>
+						<mat-form-field>
+							<mat-label>{{ 'Custom Color Pattern' | translate }}</mat-label>
+							<mat-select formControlName="customColorId" required>
+								<mat-option *ngFor="let color of customColors.controls; let j = index"
+									[value]="color.get('id')!.value">{{ 'Color Set' | translate }} {{ j + 1
+									}}</mat-option>
+							</mat-select>
+							<mat-hint *ngIf="customColors.length == 0">
+								{{'no-custom-colors' | translate}}
+							</mat-hint>
+						</mat-form-field>
+					</ng-container>
+				</ng-container>
+				<button class="--full" type="button" mat-raised-button (click)="addMap()" color="primary"
+					aria-label="Add map">
+					<mat-icon>add</mat-icon> {{ 'new-map' | translate}}
+				</button>
+				<button mat-button class="--next-line --justify-start" matStepperPrevious>{{ 'Back' | translate
+					}}</button>
+				<button mat-button class="--justify-end" matStepperNext>{{'Next' | translate}}</button>
+			</div>
+		</mat-step>
+		<mat-step>
+			<ng-template matStepLabel>{{ 'Finish' | translate }}</ng-template>
+			<mat-form-field>
+				<mat-label>{{ 'default-production-type' | translate}}</mat-label>
+				<mat-select formControlName="defaultProductionType">
+					<mat-option *ngFor="let type of productionTypes.controls"
+						[value]="type.get('id')!.value">{{type.get('name')!.get('en')!.value}}</mat-option>
+				</mat-select>
+				<mat-hint *ngIf="productionTypes.length == 0">
+					{{'no-production-types' | translate}}
+				</mat-hint>
+			</mat-form-field>
+			<div class="configurator-grid">
+				<p class="--full" translate>necessary data</p>
+				<button class="--full" type="button" mat-raised-button (click)="exportData()" color="primary">{{
+					'Export' | translate }}</button>
+				<button class="--next-line --justify-start" mat-button matStepperPrevious>{{'Back' |
+					translate}}</button>
+				<button class="--justify-end" mat-button [routerLink]="['']">{{'Home' | translate}}</button>
+			</div>
+		</mat-step>
+	</mat-stepper>
+</div>

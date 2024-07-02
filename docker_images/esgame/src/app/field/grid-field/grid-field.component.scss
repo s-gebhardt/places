@@ -1,0 +1,81 @@
+:host {
+	position: relative;
+	display: inline;
+	outline: 1px solid black;
+	box-sizing: border-box;
+	user-select: none;
+
+	&.--is-highlighted {
+		outline: 1px solid var(--highlight-color);
+		// box-shadow: 0px 0px 4px 3px #00E0FF;
+		z-index: 1;
+
+		// use box-shadow
+		// $left: -2px 0px 1px #00E0FF;
+		// $right: 2px 0px 1px #00E0FF; 
+		// $top: 0px -2px 1px #00E0FF;
+		// $bottom: 0px 2px 1px #00E0FF;
+
+		// use filter
+		// $left: drop-shadow(-2px 0px 1px #00E0FF);
+		// $right: drop-shadow(2px 0px 1px #00E0FF);
+		// $top: drop-shadow(0px -2px 1px #00E0FF);
+		// $bottom: drop-shadow(0px 2px 1px #00E0FF);
+
+		// &.--all-sides {
+		// 	filter: $left $right $top $bottom;
+		// 	// box-shadow: $left, $right, $top, $bottom;
+		// }
+
+		// &.--left {
+		// 	filter: $left;
+		// 	// box-shadow: $left;
+		// }
+
+		// &.--top-left {
+		// 	filter: $top $left;
+		// 	// box-shadow: $top, $left;
+		// }
+
+		// &.--bottom-left {
+		// 	filter: $bottom $left;
+		// 	// box-shadow: $bottom, $left;
+		// }
+
+		// &.--right {
+		// 	filter: $right;
+		// 	// box-shadow: $right;
+		// }
+
+		// &.--top-right {
+		// 	filter: $top $right;
+		// 	// box-shadow: $top, $right;
+		// }
+
+		// &.--bottom-right {
+		// 	filter: $bottom $right;
+		// 	// box-shadow: $bottom, $right;
+		// }
+
+		// &.--top {
+		// 	filter: $top;
+		// 	// box-shadow: $top;
+		// }
+
+		// &.--bottom {
+		// 	filter: $bottom;
+		// 	// box-shadow: $bottom;
+		// }
+	}
+
+	&.--is-assigned > * {
+		outline: 1px solid yellow;
+	}
+}
+
+img {
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 1;
+}
