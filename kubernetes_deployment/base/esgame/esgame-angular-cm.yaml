@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: esgame-angular-config
+data:
+  ESGAME_ANGULAR_PORT: "tcp://esgame-angular-service:81" 
+  ESGAME_ANGULAR_PORT_81_TCP: "tcp://esgame-angular-service:81"
+  ESGAME_ANGULAR_PORT_81_TCP_ADDR: "esgame-angular-service" 
+  ESGAME_ANGULAR_SERVICE_HOST: "esgame-angular-service" 
+  ESGAME_CALCULATION_PORT: "tcp://esgame-calculation-service:8000"
+  ESGAME_CALCULATION_PORT_8000_TCP: "tcp://esgame-calculation-service:8000" 
+  ESGAME_CALCULATION_PORT_8000_TCP_ADDR: "esgame-calculation-service" 
+  ESGAME_CALCULATION_SERVICE_HOST: "esgame-calculation-service"
+  ESGAME_GEOSERVER_PORT: "tcp://esgame-geoserver-service:8080"
+  ESGAME_GEOSERVER_PORT_8080_TCP: "tcp://esgame-geoserver-service:8080" 
+  ESGAME_GEOSERVER_PORT_8080_TCP_ADDR: "esgame-geoserver-service"
+  ESGAME_GEOSERVER_SERVICE_HOST: "esgame-geoserver-service"
+  ESGAME_GEOSERVER_SVC_PORT: "esgame-geoserver-service" 
+  ESGAME_GEOSERVER_SVC_PORT_8080_TCP: "tcp://esgame-geoserver-service:8080"
+  ESGAME_GEOSERVER_SVC_PORT_8080_TCP_ADDR: "esgame-geoserver-service" 
+  ESGAME_GEOSERVER_SVC_SERVICE_HOST: "esgame-geoserver-service"

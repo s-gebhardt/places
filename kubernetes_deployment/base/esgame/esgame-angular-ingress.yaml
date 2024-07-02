@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/tls-acme: "true"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    nginx.ingress.kubernetes.io/enable-global-auth: "false"
+  labels:
+    app: esgame-angular
+  name: esgame-angular-ingress
+spec:
+  rules:
+  - host: <your ingress path for esgame>
+    http:
+      paths:
+      - backend:
+          service:
+            name: esgame-angular-service
+            port:
+              number: 81
+        path: /
+        pathType: Prefix

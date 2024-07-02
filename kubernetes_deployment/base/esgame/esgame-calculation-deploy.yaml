@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: esgame-calculation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: esgame-calculation
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: esgame-calculation
+    spec:
+      volumes:
+        - name: app-data
+          persistentVolumeClaim:
+            claimName: esgame-calculation-pvc
+      initContainers:
+      - name: esgame-calculation-pull-assets
+        image: alpine/git:latest
+        command: ["/bin/sh", "-c", "rm -rf /data/*; cd /data;  git clone https://github.com/s-gebhardt/places; mv kubernetes_deployment/assets/* /data; rm -rf kubernetes_deployment"] 
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        volumeMounts:
+          - mountPath: /data
+            name: app-data
+      containers:
+      - env:
+        - name: GEOSERVER
+          value: <your geoserver ingress>/geoserver
+        image: <your container registry>/esgame-calculation
+        imagePullPolicy: Always
+        name: esgame-calculation
+        ports:
+        - containerPort: 80
+          protocol: TCP
+        resources:
+          limits:
+            cpu: "2"
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 1Gi
+        volumeMounts:
+          - mountPath: /app/data
+            name: app-data

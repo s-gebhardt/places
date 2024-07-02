@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: esgame-angular
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: esgame-angular
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: esgame-angular
+    spec:
+      containers:
+      - image: <your container registry>/esgame
+        imagePullPolicy: Always
+        name: esgame-angular
+        envFrom:
+          - configMapRef:
+              name: esgame-angular-config
+        env:
+          - name: ESGAME_ANGULAR_PORT
+            valueFrom:
+              configMapKeyRef:
+                name: esgame-angular-config
+                key: ESGAME_ANGULAR_PORT
+        ports:
+        - containerPort: 80
+          protocol: TCP
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1Gi
+          requests:
+            cpu: 500m
+            memory: 512Mi
+

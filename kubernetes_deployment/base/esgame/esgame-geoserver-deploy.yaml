@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: esgame-geoserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: esgame-geoserver
+  template:
+    metadata:
+      labels:
+        app: esgame-geoserver
+    spec:
+      containers:
+      - env:
+        - name: CORS_ENABLED
+          value: "true" 
+        image: docker.osgeo.org/geoserver:2.24.x
+        imagePullPolicy: Always
+        name: esgame-geoserver
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        resources:
+          limits:
+            cpu: "1"
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 1Gi

@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- esgame-angular-cm.yaml
+- esgame-angular-deploy.yaml
+- esgame-angular-ingress.yaml
+- esgame-angular-svc.yaml
+- esgame-calculation-deploy.yaml
+- esgame-calculation-ingress.yaml
+- esgame-calculation-pvc.yaml
+- esgame-calculation-svc.yaml
+- esgame-geoserver-deploy.yaml
+- esgame-geoserver-ingress.yaml
+- esgame-geoserver-svc.yaml
