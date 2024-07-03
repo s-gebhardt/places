@@ -1,14 +1,14 @@
-# Splendid
+# PLACES - Participatory Landscape Configuration Effects Simulator
 
 ## project resources
 
-Splendid is a game in a webbrowser which uses an angular application combined with a an application written in R which both use a Goeserver instance for storing Geodata images.
+PLACES is a tool in a webbrowser which uses an angular application combined with a an application written in R which both use a Goeserver instance for storing Geodata images.
 
 <table class="relative-table wrapped confluenceTable" style="width: 37.656%;"><colgroup><col style="width: 17.0896%;"/><col style="width: 82.888%;"/></colgroup><tbody>
 
 <tr>
 <td>project</td>
-<td>splendid</td>
+<td>places</td>
 </tr>
 
 <tr>
@@ -41,7 +41,7 @@ Splendid is a game in a webbrowser which uses an angular application combined wi
 </td>
 
 
-To deploy the Splendid game to your container environment do the following steps
+To deploy PLACES to your container environment do the following steps
 
 1. Build the images in the docker_images directory according to the README in that folder
 2. Push images to container registry of your choice
