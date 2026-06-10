@@ -1,5 +1,6 @@
 {
 	"staticDataUrl": "assets/dataGridExample.json",
 	"dynamicDataUrl": "assets/data.json",
-	"calcUrl": ""
+	"calcUrl": "",
+	"defaultMode": "dynamic"
 }
