@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Consume the esgame Kubernetes base (frontend + calculation + geoserver) and layer ONLY the
+# places-specific bits on top — no forked manifests.
+# Pin the ref to v2.0.0 once that esgame release is tagged (master is used until then; 1.9.0
+# predates deploy/k8s/base).
+resources:
+  - https://github.com/mlacayoemery/esgame//deploy/k8s/base?ref=master
+  - pvc.yaml
+
+# Point the base's logical image names at the places images.
+images:
+  - name: esgame-angular
+    newName: CHANGE-ME-registry/places-frontend      # built from ../../frontend
+    newTag: latest
+  - name: esgame-calculation
+    newName: CHANGE-ME-registry/places-calculation    # built from ../../calculation
+    newTag: latest
+
+patches:
+  # places' backend URL + geoserver (overrides the base ConfigMap).
+  - path: patch-config.yaml
+  # places geodata: swap the base's emptyDir for a PVC + a loader init container.
+  - path: patch-calculation.yaml
+  # Ingress hosts (replace the placeholder hosts in the base).
+  - target: { kind: Ingress, name: esgame-angular-ingress }
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: CHANGE-ME-places.example.com
+  - target: { kind: Ingress, name: esgame-calculation-ingress }
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: CHANGE-ME-places-calculation.example.com
+  - target: { kind: Ingress, name: esgame-geoserver-ingress }
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: CHANGE-ME-places-geoserver.example.com

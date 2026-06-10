@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: esgame-calculation
+spec:
+  template:
+    spec:
+      # Replace the base's ephemeral emptyDir with a persistent volume for places' geodata...
+      volumes:
+        - name: app-data
+          emptyDir: null
+          persistentVolumeClaim:
+            claimName: places-geodata
+      # ...and load that geodata at startup. The geodata is no longer in git, so fetch it from your
+      # object storage / data release here (placeholder below — replace with the real loader).
+      initContainers:
+        - name: load-geodata
+          image: alpine:3.20
+          command:
+            - /bin/sh
+            - -c
+            - "echo 'TODO: fetch places geodata into /data (object storage / data release)'; ls -la /data"
+          volumeMounts:
+            - name: app-data
+              mountPath: /data

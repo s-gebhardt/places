@@ -1,0 +1,41 @@
+# PLACES local/full stack. The frontend is the upstream esgame image with places' config + map
+# assets overlaid (built from ../../frontend); the calculation + geoserver are places' own.
+#
+#   docker compose -p places --env-file deploy/compose/.env.places \
+#     -f deploy/compose/docker-compose.places.yml up -d --build
+#
+# Note: a real calculation needs places' geodata loaded into geoserver/the calculator (the geodata
+# is no longer in git — supply it from your object storage / data release).
+name: places
+
+services:
+  places-frontend:
+    build:
+      context: ../../frontend
+      args:
+        ESGAME_IMAGE: ${ESGAME_IMAGE:-ghcr.io/mlacayoemery/esgame:master}
+    image: places-frontend
+    container_name: places-frontend
+    environment:
+      # The browser posts here (client-side); for prod set this to the public calculation ingress.
+      CALC_URL: ${CALC_URL:-http://localhost:8000}
+    ports:
+      - "81:80"
+
+  places-calculation:
+    build:
+      context: ../../calculation
+    image: places-calculation
+    container_name: places-calculation
+    environment:
+      GEOSERVER: ${GEOSERVER_URL:-http://localhost:8080/geoserver}
+    ports:
+      - "8000:8000"
+
+  places-geoserver:
+    image: docker.osgeo.org/geoserver:2.24.x
+    container_name: places-geoserver
+    environment:
+      CORS_ENABLED: "true"
+    ports:
+      - "8080:8080"

@@ -1,55 +1,56 @@
-# PLACES - Participatory Landscape Configuration Effects Simulator
+# PLACES — Participatory Landscape Configuration Effects Simulator
 
-## project resources
+PLACES is a deployment of the [esgame](https://github.com/mlacayoemery/esgame) "Tradeoff" game
+(an Angular web app) backed by an R calculation service and a GeoServer instance.
 
-PLACES is a tool in a webbrowser which uses an angular application combined with a an application written in R which both use a Goeserver instance for storing Geodata images.
+> **This branch (`feature/esgame-overlay`) re-converges PLACES onto esgame as a thin overlay.**
+> PLACES no longer vendors/forks the Angular source. The frontend is the **upstream esgame image**
+> with only PLACES' game config and map assets layered on top; PLACES' visual customizations are now
+> upstream esgame config flags (`visualOptions`, `gradientOverrides`).
 
-<table class="relative-table wrapped confluenceTable" style="width: 37.656%;"><colgroup><col style="width: 17.0896%;"/><col style="width: 82.888%;"/></colgroup><tbody>
+## Layout
 
-<tr>
-<td>project</td>
-<td>places</td>
-</tr>
+```
+frontend/        # thin overlay image: FROM the esgame image, COPY data.json + config.json + map TIFFs
+  Dockerfile
+  data.json      # PLACES' dynamic-game config (incl. visualOptions + gradientOverrides)
+  config.json
+  assets/images/ # PLACES' suitability/consequence map rasters
+calculation/     # PLACES' R Plumber calculation service (its own image)
+deploy/
+  compose/       # local / single-host stack (docker-compose.places.yml + .env.places.example)
+  k8s/           # Kustomize overlay on esgame//deploy/k8s/base (image, hosts, calc geodata, CALC_URL)
+```
 
-<tr>
-<td>git repos</td>
-<td><a class="external-link" href="https://github.com/s-gebhardt/places" rel="nofollow">https://github.com/s-gebhardt/places</a></td>
-</tr>
+**Not in git:** the large calculation **geodata** (rasters/CSVs) and any **secrets** — supply those
+from object storage / your secret store at deploy time.
 
-<tr>
-<td>version</td>
-<td>test</td>
-</tr>
+## Run locally (compose)
 
-<tr>
-<td>Container image</td>
-<td><p><a class="external-link" href="docker.osgeo.org/geoserver:2.24.x" rel="nofollow">docker.osgeo.org/geoserver:2.24.x</a><br/><a href="rstudio/plumber" rel="nofollow">rstudio/plumber</a></p><p><br/></p></td>
-</tr>
+```sh
+cp deploy/compose/.env.places.example deploy/compose/.env.places   # then edit
+docker compose -p places --env-file deploy/compose/.env.places \
+  -f deploy/compose/docker-compose.places.yml up -d --build
+# frontend http://localhost:81/   calculation :8000   geoserver :8080
+```
 
-<tr>
-<td>Github repos</td>
-<td><p><a class="external-link" href="https://github.com/Vangelis96/esgame.git" rel="nofollow">https://github.com/Vangelis96/esgame.git</a><br/><a class="external-link" href="https://github.com/geoserver/docker" rel="nofollow">https://github.com/geoserver/docker</a></p></td>
-</tr>
+The frontend image builds `FROM` the upstream esgame image (`ESGAME_IMAGE`, pin to `:2.0.0` once
+tagged). `CALC_URL` is injected into the running frontend at start — no rebuild to retarget the
+backend. A *real* calculation also needs PLACES' geodata loaded into GeoServer/the calculator.
 
-</tbody></table>
+## Deploy to Kubernetes
 
+```sh
+# set images, ingress hosts, and CALC_URL in deploy/k8s/ (CHANGE-ME-* placeholders), then:
+kubectl apply -k deploy/k8s
+```
 
-## Deployment
+`deploy/k8s` references the esgame base (`mlacayoemery/esgame//deploy/k8s/base?ref=…`) and patches
+only: the images (PLACES frontend + calculation), the ingress hosts, the `CALC_URL`/GeoServer
+ConfigMap, and a PVC + init container that loads PLACES' geodata.
 
-<td>
-<img alt="" class="gliffy-macro-image" src="readme_images/353763780.png" style="border: none; width: 1432px;" usemap="#gliffy-map-353763779-4180"/>
-</td>
+## Updating game content
 
-
-To deploy PLACES to your container environment do the following steps
-
-1. Build the images in the docker_images directory according to the README in that folder
-2. Push images to container registry of your choice
-3. go into the /kubernetes_deployment/base/esgame folder
-4. Change the -deploy.yaml and -ingress.yaml files to your specs
-5. go into the /kubernetes_deployment/base folder 
-6. kubectl apply -k .
-
-## Changes in Angular App
-
-If a change has been made in the game itself, for instance in the data.json file the esgame container also has to be rebuild.
+Edit `frontend/data.json` (and/or the rasters in `frontend/assets/images/`) and rebuild the
+`places-frontend` image. The Angular app itself comes from upstream esgame — bump `ESGAME_IMAGE`
+to pull in app changes; no source rebuild here.

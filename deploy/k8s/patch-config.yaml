@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: esgame-config
+data:
+  # Public calculation URL the browser posts to (must match the calculation ingress host above).
+  CALC_URL: "https://esgame-calculation.containers.wurnet.nl/esgame"
+  GEOSERVER_URL: "http://esgame-geoserver-service:8080/geoserver"
