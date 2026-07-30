@@ -612,7 +612,10 @@ calculate<-function(req, geoserver_url, game_id, round_id,score_PD,map_AG) {
       axis.text = element_blank(),
       axis.title = element_blank(),
       panel.grid = element_blank(),
-      plot.margin = unit(rep(0.8,5), "cm") 
+      # A margin has four sides. rep(0.8,5) gave five values; ggplot2 tolerated the
+      # extra silently until 4.x, which errors with "The `plot.margin` theme element
+      # must be a <unit> vector of length 4" and takes the whole round with it.
+      plot.margin = unit(rep(0.8,4), "cm") 
     ) +
     coord_polar()
   
@@ -638,9 +641,19 @@ calculate<-function(req, geoserver_url, game_id, round_id,score_PD,map_AG) {
   #connect to GeoServer
   ## Geoserver
   gs_url <- geoserver_url
+  # Credentials from the environment. These were hardcoded to admin/geoserver — the
+  # GeoServer image's defaults — which fails outright against any GeoServer that sets a
+  # password ("Impossible to connect to GeoServer: Wrong credentials"). The fallbacks keep
+  # an already-running deployment working and warn; deploy/k8s injects real values from the
+  # esgame-geoserver-admin Secret.
+  gs_user <- Sys.getenv("GEOSERVER_USER", "admin")
+  gs_pwd  <- Sys.getenv("GEOSERVER_PASSWORD", "geoserver")
+  if (gs_pwd == "geoserver") {
+    log_warn("GEOSERVER_PASSWORD is unset, so the GeoServer default password is in use. Set GEOSERVER_USER/GEOSERVER_PASSWORD.")
+  }
   gsman <-GSManager$new(
     url = gs_url, #baseUrl of the Geoserver
-    user = "admin", pwd = "geoserver", #credentials
+    user = gs_user, pwd = gs_pwd,
     logger = NULL #logger, for info or debugging purpose
   )
   
