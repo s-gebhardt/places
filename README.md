@@ -36,40 +36,87 @@ fixed_HC_score.tif           optimalHC_score.tif         worstHC_score.tif
 trace.tif                    trace_numbers.csv           buffer_list.csv
 ```
 
-A copy of all of them is in this repository's history — they were removed from
-`kubernetes_deployment/assets/` when PLACES was re-converged onto esgame. To run a round locally
-without object storage:
+`scripts/fetch-geodata.sh` puts them in a cache outside the repo:
 
 ```sh
-mkdir -p /tmp/places-data
-for f in $(git show --diff-filter=D --name-only 310fd46 -- 'kubernetes_deployment/assets/*' \
-             | grep -E '\.(tif|csv)$'); do
-  git show "310fd46^:$f" > "/tmp/places-data/$(basename "$f")"
-done
-# then mount it: -v /tmp/places-data:/app/data
+scripts/fetch-geodata.sh                                        # -> /store/places/geodata
+PLACES_GEODATA=~/places-data scripts/fetch-geodata.sh           # cache somewhere else
+PLACES_GEODATA_URL=https://…/geodata.tar.gz scripts/fetch-geodata.sh
 ```
 
-`deploy/k8s/patch-calculation.yaml`'s `load-geodata` init container is still a placeholder
-(`echo 'TODO: fetch places geodata'`), so a cluster deploy has no data until that is replaced.
+With `PLACES_GEODATA_URL` set it pulls a data-release tarball — the production path. Without it, it
+recovers the files from **this repository's own history** (they were removed from
+`kubernetes_deployment/assets/` when PLACES was re-converged onto esgame), which is enough to run a
+round locally with no object storage at all. Either way it verifies all 13 arrived and exits
+non-zero otherwise, because a partial load is worse than an empty one: the round still returns
+`200` and still publishes rasters, it just scores everything `NaN`.
 
-**Allocate only the playable hexagons.** `LU_and_NEW_hexa.tif` carries 472 ids: the 465 board
-hexagons the frontend sends, plus 7 low values (`2`–`8`) that are fixed landscape features.
-Reclassifying those 7 does not fail — the round still returns `200` and publishes its rasters — but
-**every score comes back `NaN`**. See esgame's
+Both deployment paths consume that cache the same way — the compose stack through a one-shot
+`places-geodata-loader` service, `deploy/k8s` through the `load-geodata` init container, which
+fetches the tarball from a `places-geodata-source` Secret and applies the same 13-file check:
+
+```sh
+kubectl create secret generic places-geodata-source --from-literal=url='https://…/geodata.tar.gz'
+```
+
+The target must stay **writable**: `calculation.r` does `setwd("/app/data")` and writes its seven
+output rasters and the spider-plot PNG back into that directory, then serves them from it. So the
+read-only cache is copied into a writable volume rather than mounted onto `/app/data` directly.
+
+**Allocate only the playable hexagons, and send an array.** `LU_and_NEW_hexa.tif` carries 472
+distinct ids: 465 board hexagons (numbered in hundreds — `100`, `200`, … `46500`, *not* a
+contiguous range) plus 7 low values (`2`–`8`) that are fixed landscape features.
+
+```jsonc
+{"game_id": 1, "round": 1, "score": 42,
+ "allocation": [{"id": 100, "lulc": 10}, {"id": 200, "lulc": 20}, …]}   // 465 entries
+```
+
+`allocation` must be an **array of `{id, lulc}` objects** — that is what `jsonlite` turns into the
+two-column matrix `raster::reclassify` expects. An id-keyed object instead gives a `500`
+(`comparison of these types is not implemented`). `lulc` is a `productionTypes` code from
+`frontend/data.json`: `10` `20` `30` `40` `50` `60`.
+
+Including the 7 fixed features does not fail either — measured against this stack, the round still
+returns `200` and still publishes all six coverages, but **3 of the 6 scores come back `NaN`** (HH,
+WE, HC). Board ids only gives six real scores. So a partly-unscored round is indistinguishable from
+a good one unless you look at the numbers, which is what `test/stack.sh` does. See also esgame's
 [calculator reference](https://mlacayoemery.github.io/esgame/docs/reference/calculator.html).
 
 ## Run locally (compose)
 
 ```sh
-cp deploy/compose/.env.places.example deploy/compose/.env.places   # then edit
-docker compose -p places --env-file deploy/compose/.env.places \
-  -f deploy/compose/docker-compose.places.yml up -d --build
+scripts/fetch-geodata.sh                                    # once
+docker compose -p places -f deploy/compose/docker-compose.places.yml up -d --build
 # frontend http://localhost:81/   calculation :8000   geoserver :8080
 ```
 
+Every variable has a default that works, so that is the whole thing — copy
+`deploy/compose/.env.places.example` to `.env.places` and pass `--env-file` only when you need to
+change something. Set `PLACES_FRONTEND_PORT` / `PLACES_CALC_PORT` / `PLACES_GEOSERVER_PORT` if those
+host ports are taken; if you move the GeoServer port, move `GEOSERVER_PUBLIC_URL` with it.
+
 The frontend image builds `FROM` the upstream esgame image (`ESGAME_IMAGE`, pin to `:2.0.0` once
 tagged). `CALC_URL` is injected into the running frontend at start — no rebuild to retarget the
-backend. A *real* calculation also needs PLACES' geodata loaded into GeoServer/the calculator.
+backend.
+
+**Two GeoServer addresses, and they are not interchangeable.** `GEOSERVER_URL` is server-to-server:
+the calculation publishes coverages over the REST API from inside the network. `GEOSERVER_PUBLIC_URL`
+is what the WCS URLs in the response are built from, and those are fetched by the **browser** — set
+it to the in-network name and every round returns `200` with coverage URLs no client can resolve.
+
+### Testing it
+
+```sh
+test/stack.sh          # brings the stack up, plays a real round, asserts the result is usable
+test/stack.sh --down   # tear it down
+test/smoke.sh          # frontend overlay only (docker + curl)
+test/k8s.sh            # renders deploy/k8s and checks the overlay (needs kustomize)
+```
+
+`test/stack.sh` checks scores are finite numbers, fetches the returned coverage URLs from outside
+the compose network, and asserts the calculation installs nothing at run time — each of which was a
+real silent failure, not a hypothetical one.
 
 ## Deploy to Kubernetes
 

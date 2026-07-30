@@ -39,6 +39,38 @@ check "GeoServer is not a rolling tag"      "! grep -qE 'geoserver:[0-9]+\.[0-9]
 check "PVC for the geodata is present"      "grep -q 'kind: PersistentVolumeClaim' '${rendered}'"
 check "ingress hosts are PLACES hosts"      "[ \"\$(grep -cE '^\s+- host: .*places' '${rendered}')\" -eq 3 ]"
 
+# The geodata loader has to actually load geodata. It was an `echo TODO` for a long time, and a
+# pod whose init container succeeds without loading anything looks completely healthy: the round
+# returns 200, publishes coverages, and scores every indicator NaN.
+check "load-geodata init container exists"  "grep -q 'name: load-geodata' '${rendered}'"
+check "load-geodata is not a placeholder"   "! grep -q 'TODO: fetch places geodata' '${rendered}'"
+check "load-geodata verifies what it got"   "grep -q 'geodata incomplete in /data' '${rendered}'"
+
+# The calculation's env comes from two places: the esgame base (GEOSERVER + credentials) and this
+# overlay (GEOSERVER_PUBLIC_URL). It is added with a strategic-merge patch on `containers`, which
+# merges env by name — but a mistake there drops the base's entries instead of merging, and the
+# result still renders and still applies.
+calc_env=$(python3 - "${rendered}" <<'PY'
+import sys, yaml
+for d in yaml.safe_load_all(open(sys.argv[1])):
+    if d and d.get('kind') == 'Deployment' and d['metadata']['name'] == 'esgame-calculation':
+        c = d['spec']['template']['spec']['containers'][0]
+        print(' '.join(e['name'] for e in c.get('env', [])))
+PY
+)
+for v in GEOSERVER GEOSERVER_USER GEOSERVER_PASSWORD GEOSERVER_PUBLIC_URL; do
+  check "calculation env has ${v}"          "grep -qw '${v}' <<<\"\${calc_env}\""
+done
+
+# The two GeoServer addresses must differ. GEOSERVER is in-cluster (REST publishing); the WCS URLs
+# built from GEOSERVER_PUBLIC_URL are fetched by the BROWSER, which cannot resolve a Service name.
+# Setting them equal renders fine, applies fine, and returns coverage URLs no client can load.
+internal=$(grep -A1 'GEOSERVER_URL:' "${rendered}" | grep -oE 'http[^"]+' | head -1)
+public=$(grep 'GEOSERVER_PUBLIC_URL:' "${rendered}" | grep -oE 'http[^"]+' | head -1)
+check "public GeoServer URL is set"         "[ -n '${public}' ]"
+check "public GeoServer URL is not internal" "[ '${internal}' != '${public}' ]"
+check "public GeoServer URL is not a Service" "! grep -q 'esgame-geoserver-service' <<<'${public}'"
+
 # An Ingress host must be a valid RFC 1123 subdomain. The schema does not enforce it, so an
 # uppercase placeholder passes kubeconform and is then rejected by the API server:
 #   spec.rules[0].host: Invalid value: "CHANGE-ME-places.example.com": a lowercase RFC 1123

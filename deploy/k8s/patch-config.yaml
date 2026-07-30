@@ -5,4 +5,11 @@ metadata:
 data:
   # Public calculation URL the browser posts to (must match the calculation ingress host above).
   CALC_URL: "https://esgame-calculation.containers.wurnet.nl/esgame"
+  # Server-to-server: the calculation publishes coverages over GeoServer's REST API from inside
+  # the cluster.
   GEOSERVER_URL: "http://esgame-geoserver-service:8080/geoserver"
+  # Browser-facing: the WCS URLs the calculation hands back. This has to be the geoserver INGRESS
+  # host, not the service name above — the browser cannot resolve esgame-geoserver-service, so
+  # leaving these equal yields coverage URLs no client can fetch. Keep in step with the
+  # esgame-geoserver-ingress host in kustomization.yaml.
+  GEOSERVER_PUBLIC_URL: "https://change-me-places-geoserver.example.com/geoserver"

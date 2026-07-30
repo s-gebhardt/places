@@ -1,5 +1,7 @@
-library(remotes)
-remotes::install_github('eblondel/geosapi')	
+# geosapi is installed at BUILD time in the Dockerfile. It used to be pulled from GitHub HEAD
+# here, on every container start: ~2 minutes added to every boot, nothing pinned, and the
+# container could not start at all without GitHub reachable — it died on `library(remotes)`
+# before plumber ever bound a port. Same fix as esgame's tools/R calculator.
 options("plumber.port" = 5555)
 
 #NEW CODE --> ALLOW CORS REQUESTS
@@ -641,6 +643,16 @@ calculate<-function(req, geoserver_url, game_id, round_id,score_PD,map_AG) {
   #connect to GeoServer
   ## Geoserver
   gs_url <- geoserver_url
+  # Two addresses, because this one variable was doing two incompatible jobs. gs_url is
+  # server-to-server: we publish coverages over the REST API from inside the network, so it
+  # has to be the in-cluster/in-network name. But the WCS URLs built below are handed to the
+  # BROWSER, which cannot resolve that name — in compose it is `places-geoserver`, in k8s
+  # `esgame-geoserver-service`, and neither exists outside. That is what the geoserver
+  # Ingress is for. Defaults to gs_url, so an existing deployment behaves exactly as before.
+  gs_public <- Sys.getenv("GEOSERVER_PUBLIC_URL", geoserver_url)
+  if (gs_public == gs_url) {
+    log_warn("GEOSERVER_PUBLIC_URL is unset, so coverage URLs will use the internal GeoServer address ({gs_url}). The browser probably cannot resolve it.")
+  }
   # Credentials from the environment. These were hardcoded to admin/geoserver — the
   # GeoServer image's defaults — which fails outright against any GeoServer that sets a
   # password ("Impossible to connect to GeoServer: Wrong credentials"). The fallbacks keep
@@ -723,7 +735,7 @@ calculate<-function(req, geoserver_url, game_id, round_id,score_PD,map_AG) {
   
   created <- gsman$createCoverage(ws = ws_name, cs = short_name, coverage = cov)
   
-  raster_url <- paste0(gs_url , "/wcs?service=WCS&version=2.0.1&request=GetCoverage" ,
+  raster_url <- paste0(gs_public , "/wcs?service=WCS&version=2.0.1&request=GetCoverage" ,
                            "&coverageId=" , ws_name , ":" , short_name ,
                            "&format=image%2Fgeotiff" )
   

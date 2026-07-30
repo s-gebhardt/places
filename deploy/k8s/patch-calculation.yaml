@@ -5,21 +5,80 @@ metadata:
 spec:
   template:
     spec:
-      # Replace the base's ephemeral emptyDir with a persistent volume for places' geodata...
+      # Replace the base's ephemeral emptyDir with a persistent volume for places' geodata.
+      # It must be writable, not read-only: calculation.r does setwd("/app/data") and writes its
+      # seven output rasters plus the spider-plot PNG there, then serves them back out of it.
       volumes:
         - name: app-data
           emptyDir: null
           persistentVolumeClaim:
             claimName: places-geodata
-      # ...and load that geodata at startup. The geodata is no longer in git, so fetch it from your
-      # object storage / data release here (placeholder below — replace with the real loader).
+      containers:
+        - name: esgame-calculation
+          # The base wires GEOSERVER (in-cluster) and the admin credentials. places' calculation
+          # also needs the browser-facing address, because the WCS URLs it returns are fetched by
+          # the client, not by the cluster.
+          env:
+            - name: GEOSERVER_PUBLIC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: esgame-config
+                  key: GEOSERVER_PUBLIC_URL
       initContainers:
+        # Loads the 13 reference rasters/CSVs the calculation reads. They are deliberately not in
+        # git (see README), so they come from a data release tarball named by the
+        # places-geodata-source Secret. The compose stack does the same thing with a one-shot
+        # loader service — same shape, same verify.
+        #
+        #   kubectl create secret generic places-geodata-source \
+        #     --from-literal=url='https://…/places-geodata.tar.gz'
+        #
+        # Runs on every pod start and is idempotent: with a full PVC it exits in a second without
+        # downloading, and it never overwrites the per-round outputs already on the volume.
         - name: load-geodata
-          image: alpine:3.20
+          image: alpine:3.22
+          env:
+            - name: GEODATA_URL
+              valueFrom:
+                secretKeyRef:
+                  name: places-geodata-source
+                  key: url
           command:
             - /bin/sh
             - -c
-            - "echo 'TODO: fetch places geodata into /data (object storage / data release)'; ls -la /data"
+            - |
+              set -eu
+              FILES="LU_and_NEW_hexa.tif Water_points_ID_raster.tif distance_weight_trace.tif
+                     soil_groups_hexa.tif gvg_hexa_raster.tif sensi_GW_patch.tif
+                     fix_nature_patches.tif fixed_HC_score.tif optimalHC_score.tif
+                     worstHC_score.tif trace.tif trace_numbers.csv buffer_list.csv"
+              missing() { m=; for f in $FILES; do [ -s "/data/$f" ] || m="$m $f"; done; echo "$m"; }
+
+              if [ -z "$(missing)" ]; then
+                echo ">> geodata already present in /data; nothing to fetch"
+                exit 0
+              fi
+
+              echo ">> fetching geodata from \$GEODATA_URL"
+              apk add --no-cache curl >/dev/null
+              tmp=$(mktemp -d)
+              curl -fsSL --retry 3 -o "$tmp/geodata.tar.gz" "$GEODATA_URL"
+              tar -xzf "$tmp/geodata.tar.gz" -C "$tmp"
+              # Flatten: accept a bare tarball or one with a top-level directory. -n so a retry
+              # after a partial extract cannot clobber good files or per-round outputs.
+              find "$tmp" -type f \( -name '*.tif' -o -name '*.csv' \) -exec cp -n {} /data/ \;
+              rm -rf "$tmp"
+
+              # Verify, and fail the pod if short. A partial load is worse than an empty one: the
+              # calculation still returns 200 and still publishes coverages, it just scores
+              # everything NaN — which looks like a working deployment.
+              gone=$(missing)
+              if [ -n "$gone" ]; then
+                echo "!! geodata incomplete in /data — missing:$gone" >&2
+                echo "   Check the tarball at \$GEODATA_URL contains all 13 files." >&2
+                exit 1
+              fi
+              echo ">> geodata ready: $(ls /data | wc -l) files in /data"
           volumeMounts:
             - name: app-data
               mountPath: /data

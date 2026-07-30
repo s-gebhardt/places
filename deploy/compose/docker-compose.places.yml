@@ -1,12 +1,24 @@
 # PLACES local/full stack. The frontend is the upstream esgame image with places' config + map
 # assets overlaid (built from ../../frontend); the calculation + geoserver are places' own.
 #
-#   docker compose -p places --env-file deploy/compose/.env.places \
-#     -f deploy/compose/docker-compose.places.yml up -d --build
+#   scripts/fetch-geodata.sh          # once — populates the geodata cache outside the repo
+#   docker compose -p places -f deploy/compose/docker-compose.places.yml up -d --build
 #
-# Note: a real calculation needs places' geodata loaded into geoserver/the calculator (the geodata
-# is no longer in git — supply it from your object storage / data release).
+#   frontend http://localhost:81/   calculation :8000   geoserver :8080
+#
+# Defaults are chosen so the line above works with no .env at all; copy .env.places.example to
+# .env.places and pass --env-file for anything else. The published ports are variables because
+# 8080 in particular is often already taken — set PLACES_GEOSERVER_PORT and match it in
+# GEOSERVER_PUBLIC_URL, which is the address the browser uses.
+#
+# The calculation reads 13 rasters/CSVs from /app/data. They are not in git (see README), so they
+# come from $PLACES_GEODATA via the one-shot loader below. Without them a round still returns 200
+# and still publishes rasters — it just scores everything NaN.
 name: places
+
+volumes:
+  geoserver_data:     # GeoServer catalog; survives a restart so published rounds are not lost
+  calculation_data:   # /app/data — reference inputs AND per-round outputs (see loader)
 
 services:
   places-frontend:
@@ -20,7 +32,43 @@ services:
       # The browser posts here (client-side); for prod set this to the public calculation ingress.
       CALC_URL: ${CALC_URL:-http://localhost:8000}
     ports:
-      - "81:80"
+      - "${PLACES_FRONTEND_PORT:-81}:80"
+
+  # Populates /app/data before the calculation starts — the compose analogue of the k8s
+  # `load-geodata` init container, and deliberately the same shape.
+  #
+  # Why a copy rather than mounting $PLACES_GEODATA straight onto /app/data: calculation.r does
+  # setwd("/app/data") and writes its seven output rasters and the spider-plot PNG there, then
+  # serves them from it (@assets /app/data /images). So /app/data must be writable, while the
+  # cache is reference data shared with other stacks and stays read-only. Copy in, write on top.
+  places-geodata-loader:
+    image: alpine:3.22
+    container_name: places-geodata-loader
+    volumes:
+      - ${PLACES_GEODATA:-/store/places/geodata}:/srv/geodata:ro
+      - calculation_data:/data
+    # Idempotent: -n keeps per-round outputs and does not re-copy on restart. Then verify, because
+    # a partial copy fails silently — every score comes back NaN with a 200.
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        cp -n /srv/geodata/*.tif /srv/geodata/*.csv /data/ 2>/dev/null || true
+        missing=
+        for f in LU_and_NEW_hexa.tif Water_points_ID_raster.tif distance_weight_trace.tif \
+                 soil_groups_hexa.tif gvg_hexa_raster.tif sensi_GW_patch.tif \
+                 fix_nature_patches.tif fixed_HC_score.tif optimalHC_score.tif \
+                 worstHC_score.tif trace.tif trace_numbers.csv buffer_list.csv; do
+          [ -s "/data/$$f" ] || missing="$$missing $$f"
+        done
+        if [ -n "$$missing" ]; then
+          echo "!! /app/data is incomplete — missing:$$missing" >&2
+          echo "   Run scripts/fetch-geodata.sh on the host, then re-run compose up." >&2
+          exit 1
+        fi
+        echo ">> geodata ready: $$(ls /data | wc -l) files in /app/data"
+    restart: "no"
 
   places-calculation:
     build:
@@ -28,14 +76,37 @@ services:
     image: places-calculation
     container_name: places-calculation
     environment:
-      GEOSERVER: ${GEOSERVER_URL:-http://localhost:8080/geoserver}
+      # Server-to-server: the REST calls that publish coverages run inside this network.
+      GEOSERVER: ${GEOSERVER_URL:-http://places-geoserver:8080/geoserver}
+      # Browser-facing: the WCS URLs the calculation returns. Must NOT be the in-network name
+      # above — nothing outside this network can resolve `places-geoserver`.
+      GEOSERVER_PUBLIC_URL: ${GEOSERVER_PUBLIC_URL:-http://localhost:8080/geoserver}
+      # calculation.r creates a workspace and uploads coverages over REST, so it needs the
+      # credentials the server was started with. Defaults match the geoserver service below.
+      GEOSERVER_USER: ${GEOSERVER_USER:-admin}
+      GEOSERVER_PASSWORD: ${GEOSERVER_PASSWORD:-geoserver}
+    volumes:
+      - calculation_data:/app/data
     ports:
-      - "8000:8000"
+      - "${PLACES_CALC_PORT:-8000}:8000"
+    depends_on:
+      places-geoserver:
+        condition: service_started
+      places-geodata-loader:
+        condition: service_completed_successfully
 
   places-geoserver:
-    image: docker.osgeo.org/geoserver:2.24.x
+    # Pinned to a specific patch, in step with esgame's deploy/k8s base and both esgame compose
+    # stacks. 2.24.x was a rolling tag, not a version.
+    image: docker.osgeo.org/geoserver:2.28.4
     container_name: places-geoserver
     environment:
       CORS_ENABLED: "true"
+      # Parameterised rather than left at the image defaults. Override in .env.places for
+      # anything reachable beyond this host: the REST API can publish and delete data.
+      GEOSERVER_ADMIN_USER: ${GEOSERVER_USER:-admin}
+      GEOSERVER_ADMIN_PASSWORD: ${GEOSERVER_PASSWORD:-geoserver}
+    volumes:
+      - geoserver_data:/opt/geoserver_data
     ports:
-      - "8080:8080"
+      - "${PLACES_GEOSERVER_PORT:-8080}:8080"
