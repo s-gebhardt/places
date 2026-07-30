@@ -1,6 +1,30 @@
 FROM rstudio/plumber
 
-RUN apt-get update -qq && apt-get install -y libssl-dev libcurl4-gnutls-dev unixodbc-dev libmysqlclient-dev
+# System libraries FIRST, then R packages. The previous order installed R packages and only then
+# the apt layers, which meant a package could install cleanly and still fail to LOAD: geosapi
+# pulls in keyring, whose shared object needs libsecret, so requireNamespace('geosapi') was FALSE
+# at that point in the build even though install.packages had just succeeded.
+#
+# These are RUNTIME libraries, not -dev packages. Every R package here installs as a p3m binary
+# for noble, so it links against the shared objects and never needs headers. Together with
+# --no-install-recommends this took the image from 3.36 GB to ~2.6 GB; the dropped layer had been
+# pulling in python3-numpy, libpoppler-dev and libhdf5-dev. gdal-bin (command-line tools),
+# protobuf-compiler, libjq-dev, unixodbc-dev and libmysqlclient-dev went too — calculation.r
+# shells out to nothing and talks to no database.
+#
+# The trade-off: these names are tied to the Ubuntu release and the library soname (libgdal34t64
+# is noble/GDAL 3.8). A newer base fails the build with "Unable to locate package", which is the
+# good kind of failure. If you add an R package with no binary that compiles from source, add its
+# -dev package back. Same layout as esgame's tools/R/Dockerfile — keep the two in step.
+RUN apt-get update -qq \
+ && apt-get install -y --no-install-recommends \
+      libgdal34t64 \
+      libgeos-c1t64 \
+      libproj25 \
+      libudunits2-0 \
+      libsecret-1-0 \
+      libsodium23 \
+ && rm -rf /var/lib/apt/lists/*
 
 RUN R -e "install.packages('Rcpp')"
 RUN R -e "install.packages('sf')"
@@ -13,33 +37,38 @@ RUN R -e "install.packages('ggplot2')"
 RUN R -e "install.packages('ggpubr')"
 RUN R -e "install.packages('tidyverse')"
 RUN R -e "install.packages('tidyr')"
-RUN R -e "install.packages('grid')"
+# 'grid' was here too: it ships with R as a base package, so that line also installed nothing.
 RUN R -e "install.packages('jsonlite')"
 # geosapi is on CRAN (0.8-1). This was commented out while calculation.r pulled it from GitHub
 # HEAD at container start instead — see the note at the top of calculation.r.
 RUN R -e "install.packages('geosapi')"
 RUN R -e "install.packages('logger')"
-RUN R -e "install.packages('devtools')"
 RUN R -e "install.packages('landscapemetrics')"
-RUN R -e "install.packages('remotes')"
+RUN R -e "install.packages('terra')"
+# devtools and remotes were here. Nothing in calculation.r calls anything from either — they were
+# left over from the run-time install_github, which is gone. devtools alone was 39 MB of
+# package-development toolchain (usethis, roxygen2, pkgdown) in a runtime image.
 
-RUN apt-get install -y libcurl4-openssl-dev libssl-dev libjq-dev libprotobuf-dev protobuf-compiler make libgeos-dev libudunits2-dev libgdal-dev gdal-bin libproj-dev libv8-dev
-
-RUN apt-get install -y libsecret-1-dev libsodium-dev
-
-# Fail the build if anything calculation.r library()-s is not loadable. Two silent failures made
-# this worth a layer of its own:
-#   - install.packages only WARNS on an unavailable package, so `install.packages('rgdal')` exited
-#     0 and installed nothing for years (see above).
-#   - geosapi pulls in keyring, whose shared object needs libsecret. Install geosapi before the
-#     apt layers above and it installs fine but cannot load — which is why this check runs last,
-#     after every system library is in place.
-# Loading is the real test; presence in installed.packages() is not.
+# Fail the build if anything calculation.r library()-s is not loadable. install.packages only
+# WARNS on an unavailable package — that is how install.packages('rgdal') exited 0 and installed
+# nothing for years — and a package can install fine yet fail to load when a system library is
+# missing. Loading is the real test; presence in installed.packages() is not.
 RUN R -q -e "\
-  pkgs <- c('sf','raster','ggplot2','ggpubr','tidyverse','tidyr','grid','jsonlite','geosapi','logger','devtools','landscapemetrics','terra'); \
+  pkgs <- c('sf','raster','ggplot2','ggpubr','tidyverse','tidyr','grid','jsonlite','geosapi','logger','landscapemetrics','terra'); \
   bad <- pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]; \
   if (length(bad)) stop('not loadable: ', paste(bad, collapse = ', ')); \
   cat('all', length(pkgs), 'R packages load\n')"
+
+# And the two things dropping the -dev packages could plausibly have broken, checked rather than
+# assumed. sf loading proves it found libgdal/libproj; asking for the versions proves they work.
+# TLS is the other: geosapi talks to GeoServer over https in any real deployment, and losing
+# libssl would not show up until a request failed at run time.
+RUN R -q -e "\
+  v <- sf::sf_extSoftVersion(); \
+  cat('GDAL', v[['GDAL']], '/ PROJ', v[['PROJ']], '/ GEOS', v[['GEOS']], '\n'); \
+  s <- curl::curl_fetch_memory('https://cran.r-project.org/')\$status_code; \
+  if (s != 200) stop('TLS request failed with status ', s); \
+  cat('https ok\n')"
 
 WORKDIR /app
 

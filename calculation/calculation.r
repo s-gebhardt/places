@@ -52,7 +52,12 @@ library(grid)
 library(jsonlite)
 library(geosapi)
 library(logger)
-library(devtools)
+# library(devtools) was here — nothing in this file calls anything from it. See the Dockerfile.
+# Allocation-vs-raster coverage check. The Dockerfile puts this next to calculation.r in /app;
+# the plain relative path covers running it from a checkout. stopifnot rather than a silent skip:
+# a guard that quietly fails to load is worse than no guard.
+for (.p in c("coverage.R", "/app/coverage.R")) if (file.exists(.p)) { source(.p); break }
+stopifnot("coverage.R must be alongside calculation.r" = exists("esgame_report_coverage"))
 library(landscapemetrics)
 library(terra)
 
@@ -63,6 +68,10 @@ calculate<-function(req, geoserver_url, game_id, round_id,score_PD,map_AG) {
   
   ##### 1) Create Land use map #####
   LU_hexa<- raster("LU_and_NEW_hexa.tif")
+  # reclassify() silently ignores ids that are not in the raster, so an allocation from a
+  # different id space yields a 200, published coverages, and scores that never move. See
+  # coverage.R — the frontend-assets copy of this raster shares only 4 of 465 ids with the board.
+  esgame_report_coverage(LU_hexa, map_AG)
   LU_complete<-reclassify(LU_hexa, map_AG, right=F) # no value can be 1!!!!
   writeRaster(x=LU_complete, filename=paste0("LU_", "Game_",game_id,"_Round_",round_id,".tif"),overwrite=TRUE, NAflag=-9999)
 
