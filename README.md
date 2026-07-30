@@ -127,6 +127,13 @@ test/k8s.sh            # renders deploy/k8s and checks the overlay (needs kustom
 the compose network, and asserts the calculation installs nothing at run time — each of which was a
 real silent failure, not a hypothetical one.
 
+**CI runs the first two of those** (`.github/workflows/overlay.yml`) on push, on PRs, and **daily**.
+The schedule matters more than it looks: both halves of this overlay track upstream by a rolling
+reference — `deploy/k8s` pulls the esgame base at `?ref=master`, and `frontend/Dockerfile` builds
+`FROM ghcr.io/mlacayoemery/esgame:master` — so this repository can break with nobody touching it.
+The push triggers catch what changes here; the daily run catches what changes there. `test/stack.sh`
+is not in CI: geodata plus a ~15 minute R build belongs in a hand-run.
+
 ## Deploy to Kubernetes
 
 ```sh
