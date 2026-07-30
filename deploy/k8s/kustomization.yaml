@@ -9,12 +9,18 @@ resources:
   - https://github.com/mlacayoemery/esgame//deploy/k8s/base?ref=master
   - pvc.yaml
 
-# Point the base's logical image names at the places images.
+# Repoint the base's images at the places images.
+#
+# These key on the image the esgame base has ALREADY rewritten its logical names to, not on
+# the logical names themselves. Kustomize applies the base's own `images:` transformer first,
+# so by the time this overlay runs `esgame-angular` no longer appears anywhere — an entry
+# keyed on it matches nothing, does not warn, and leaves the upstream esgame image deployed.
+# Confirm with: kustomize build deploy/k8s | grep 'image:'
 images:
-  - name: esgame-angular
+  - name: ghcr.io/mlacayoemery/esgame
     newName: CHANGE-ME-registry/places-frontend      # built from ../../frontend
     newTag: latest
-  - name: esgame-calculation
+  - name: ghcr.io/mlacayoemery/esgame-calculation
     newName: CHANGE-ME-registry/places-calculation    # built from ../../calculation
     newTag: latest
 
