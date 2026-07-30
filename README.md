@@ -138,6 +138,12 @@ kubectl apply -k deploy/k8s
 only: the images (PLACES frontend + calculation), the ingress hosts, the `CALC_URL`/GeoServer
 ConfigMap, and a PVC + init container that loads PLACES' geodata.
 
+> **The base ref is `master`, which rolls.** This overlay renders against whatever esgame master
+> is at the moment you run it, so two `kubectl apply -k` a week apart are not the same
+> deployment and an upstream change arrives with no gate. Deliberate for now — places tracks
+> esgame closely and wants base fixes immediately — but pin it to a commit
+> (`?ref=<sha>`) for anything you need to reproduce, and re-run `test/k8s.sh` after each bump.
+
 ## Updating game content
 
 Edit `frontend/data.json` (and/or the rasters in `frontend/assets/images/`) and rebuild the

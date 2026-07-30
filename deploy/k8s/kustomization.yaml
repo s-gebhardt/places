@@ -6,6 +6,15 @@ kind: Kustomization
 # Pin the ref to v2.0.0 once that esgame release is tagged (master is used until then; 1.9.0
 # predates deploy/k8s/base).
 resources:
+  # ROLLING REF. `?ref=master` means this overlay renders against whatever esgame master is at
+  # the moment you run it — two `kubectl apply -k` a week apart are not the same deployment, and
+  # an upstream change lands here with no gate. That is the same class of thing test/k8s.sh
+  # forbids for the GeoServer image ("GeoServer is not a rolling tag").
+  #
+  # It is deliberate for now: places tracks esgame closely and wants base fixes immediately.
+  # Pin it to a commit for a deployment you need to reproduce:
+  #   ...esgame//deploy/k8s/base?ref=<sha>
+  # and re-run test/k8s.sh after each bump.
   - https://github.com/mlacayoemery/esgame//deploy/k8s/base?ref=master
   - pvc.yaml
 
