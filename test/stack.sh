@@ -179,7 +179,10 @@ done
 echo "    WCS GetCoverage from outside the network: ${wcs_ok}/${wcs_total}"
 check "coverage URLs were returned"            "[ ${wcs_total} -ge 5 ]"
 check "every coverage URL returns a GeoTIFF"   "[ ${wcs_total} -gt 0 ] && [ ${wcs_ok} = ${wcs_total} ]"
-check "coverage URLs are not in-network names" "! grep -q 'places-geoserver' <<<'${urls}'"
+# The -n guard is not decoration: `! grep -q ...` on an EMPTY list finds nothing, inverts to
+# true, and passes. So a run whose URL extraction broke would report this — the check that
+# guards the whole GEOSERVER vs GEOSERVER_PUBLIC_URL split — as green.
+check "coverage URLs are not in-network names" "[ -n '${urls}' ] && ! grep -q 'places-geoserver' <<<'${urls}'"
 
 # The workspace is per game/round, so a second round must not collide with the first.
 ws="esgame_game1_round1"
