@@ -25,16 +25,25 @@ deploy/
 **Not in git:** the large calculation **geodata** (rasters/CSVs) and any **secrets** — supply those
 from object storage / your secret store at deploy time.
 
-`calculation/calculation.r` reads these 13 files from `/app/data`, and the tree contains only the
-first:
+`calculation/calculation.r` reads these 13 files from `/app/data`, and **none of them is in the
+tree** in a form the calculation can use:
 
 ```
-LU_and_NEW_hexa.tif        (present, in frontend/assets/images)
+LU_and_NEW_hexa.tif        (a DIFFERENT raster of this name is in frontend/assets/images — see below)
 Water_points_ID_raster.tif   distance_weight_trace.tif   soil_groups_hexa.tif
 gvg_hexa_raster.tif          sensi_GW_patch.tif          fix_nature_patches.tif
 fixed_HC_score.tif           optimalHC_score.tif         worstHC_score.tif
 trace.tif                    trace_numbers.csv           buffer_list.csv
 ```
+
+> **Do not satisfy `LU_and_NEW_hexa.tif` from `frontend/assets/images/`.** That copy numbers its
+> hexagons `10`–`474`; the board numbers its own `100`–`46500` in hundreds, so only **4 of 465**
+> ids overlap. The round still returns `200` with finite-looking scores — it just ignores the
+> player's allocation almost entirely, returning the same numbers whatever they do. Only the
+> data-release copy that `scripts/fetch-geodata.sh` fetches shares the board's id space, which is
+> why the loaders take everything from that cache and nothing from the frontend assets.
+> Measured against esgame's `tools/R`; see its
+> [calculator reference](https://mlacayoemery.github.io/esgame/docs/reference/calculator.html).
 
 `scripts/fetch-geodata.sh` puts them in a cache outside the repo:
 
