@@ -28,6 +28,14 @@ export PLACES_GEOSERVER_PORT="${PLACES_GEOSERVER_PORT:-8180}"
 export CALC_URL="http://localhost:${PLACES_CALC_PORT}"
 export GEOSERVER_PUBLIC_URL="http://localhost:${PLACES_GEOSERVER_PORT}/geoserver"
 
+# A NON-DEFAULT GeoServer password, on purpose. Two checks below depend on it and both were
+# vacuous without it: with the password left at "geoserver", "the default password is not in
+# use" short-circuits to true and asserts nothing, while "REST answers with our credentials"
+# only proves the image's built-in login works. Generating one here makes both real, and makes
+# the round prove the calculation can publish against a GeoServer that is not on its defaults —
+# which is what any deployment looks like.
+export GEOSERVER_PASSWORD="${GEOSERVER_PASSWORD:-stacktest-$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')}"
+
 dc() { docker compose -p "${PROJECT}" -f "${COMPOSE_FILE}" "$@"; }
 
 if [ "${1:-}" = "--down" ]; then dc down -v; exit 0; fi
@@ -76,9 +84,10 @@ for i in $(seq 1 90); do
 done
 check "GeoServer REST answers with our credentials" \
   "curl -fs -u '${GEOSERVER_USER:-admin}:${GEOSERVER_PASSWORD:-geoserver}' 'http://localhost:${PLACES_GEOSERVER_PORT}/geoserver/rest/about/version.json'"
-# If the image had ignored GEOSERVER_ADMIN_PASSWORD, the default would still work. It must not.
-check "GeoServer default password is not in use" \
-  "[ '${GEOSERVER_PASSWORD:-geoserver}' = 'geoserver' ] || ! curl -fs -u admin:geoserver 'http://localhost:${PLACES_GEOSERVER_PORT}/geoserver/rest/about/version.json'"
+# If the image had ignored GEOSERVER_ADMIN_PASSWORD, the built-in login would still work.
+# Meaningful only because the password above is not the default one — see the note there.
+check "GeoServer default password is rejected" \
+  "! curl -fs -u admin:geoserver 'http://localhost:${PLACES_GEOSERVER_PORT}/geoserver/rest/about/version.json'"
 
 # --- the frontend overlay -------------------------------------------------------------------
 fe="http://localhost:${PLACES_FRONTEND_PORT}"
