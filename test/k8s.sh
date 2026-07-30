@@ -77,6 +77,11 @@ check "public GeoServer URL is not a Service" "! grep -q 'esgame-geoserver-servi
 #   subdomain must consist of lower case alphanumeric characters, '-' or '.'
 # which failed the whole apply on all three ingresses.
 hosts=$(grep -oE '^[[:space:]]+- host:[[:space:]]*[^[:space:]]+' "${rendered}" | awk '{print $3}')
+# The loop examines whatever it is given, so with no hosts it examines nothing and the check
+# below passes. The "ingress hosts are PLACES hosts" check above catches that in practice
+# (it wants exactly 3), but this one should not depend on a sibling to be meaningful.
+hostcount=$(printf '%s\n' "${hosts}" | grep -c . || true)
+check "three ingress hosts were rendered"   "[ '${hostcount}' -eq 3 ]"
 hostsbad=0
 for h in ${hosts}; do
   printf '%s' "${h}" | grep -qE '^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$' \
