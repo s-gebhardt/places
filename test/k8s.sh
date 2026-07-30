@@ -39,6 +39,19 @@ check "GeoServer is not a rolling tag"      "! grep -qE 'geoserver:[0-9]+\.[0-9]
 check "PVC for the geodata is present"      "grep -q 'kind: PersistentVolumeClaim' '${rendered}'"
 check "ingress hosts are PLACES hosts"      "[ \"\$(grep -cE '^\s+- host: .*places' '${rendered}')\" -eq 3 ]"
 
+# An Ingress host must be a valid RFC 1123 subdomain. The schema does not enforce it, so an
+# uppercase placeholder passes kubeconform and is then rejected by the API server:
+#   spec.rules[0].host: Invalid value: "CHANGE-ME-places.example.com": a lowercase RFC 1123
+#   subdomain must consist of lower case alphanumeric characters, '-' or '.'
+# which failed the whole apply on all three ingresses.
+hosts=$(grep -oE '^[[:space:]]+- host:[[:space:]]*[^[:space:]]+' "${rendered}" | awk '{print $3}')
+hostsbad=0
+for h in ${hosts}; do
+  printf '%s' "${h}" | grep -qE '^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$' \
+    || { echo "       invalid host: ${h}"; hostsbad=1; }
+done
+check "ingress hosts are RFC 1123 valid"    "[ ${hostsbad} = 0 ]"
+
 if command -v kubeconform >/dev/null; then
   check "manifests are schema-valid"        "kubeconform -strict -kubernetes-version 1.31.0 '${rendered}'"
 else

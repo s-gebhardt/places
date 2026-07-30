@@ -34,14 +34,14 @@ patches:
     patch: |
       - op: replace
         path: /spec/rules/0/host
-        value: CHANGE-ME-places.example.com
+        value: change-me-places.example.com
   - target: { kind: Ingress, name: esgame-calculation-ingress }
     patch: |
       - op: replace
         path: /spec/rules/0/host
-        value: CHANGE-ME-places-calculation.example.com
+        value: change-me-places-calculation.example.com
   - target: { kind: Ingress, name: esgame-geoserver-ingress }
     patch: |
       - op: replace
         path: /spec/rules/0/host
-        value: CHANGE-ME-places-geoserver.example.com
+        value: change-me-places-geoserver.example.com
