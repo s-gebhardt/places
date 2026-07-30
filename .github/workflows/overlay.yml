@@ -1,0 +1,53 @@
+name: Validate the esgame overlay
+
+# PLACES is a thin overlay on esgame, and both halves of it track upstream by a ROLLING
+# reference: deploy/k8s pulls the base at `?ref=master`, and frontend/Dockerfile builds FROM
+# `ghcr.io/mlacayoemery/esgame:master`. So this repository can break without anyone touching
+# it — an upstream commit is enough.
+#
+# That is the reason for the schedule. The push/PR triggers catch changes made here; the daily
+# run is what catches changes made there.
+#
+# Deliberately excluded: test/stack.sh. It needs the geodata cache and a ~15 minute R image
+# build, which is not a sensible thing to run on every push. Run it by hand — see the README.
+
+on:
+  push:
+    branches: ['**']
+    paths: ['deploy/**', 'frontend/**', 'test/**', '.github/workflows/overlay.yml']
+  pull_request:
+    paths: ['deploy/**', 'frontend/**', 'test/**', '.github/workflows/overlay.yml']
+  schedule:
+    # 05:40 UTC. Off the hour on purpose: scheduled jobs landing exactly on :00 queue behind
+    # everyone else's.
+    - cron: '40 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  k8s-overlay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install kustomize and kubeconform
+        run: |
+          curl -sSfL -o kustomize.tar.gz \
+            https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.7.1/kustomize_v5.7.1_linux_amd64.tar.gz
+          tar -xzf kustomize.tar.gz
+          curl -sSfL -o kubeconform.tar.gz \
+            https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz
+          tar -xzf kubeconform.tar.gz
+          sudo mv kustomize kubeconform /usr/local/bin/
+
+      - name: Render and check the overlay
+        run: test/k8s.sh
+
+  frontend-overlay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build the thin image on the upstream esgame base and check what it serves
+        # Catches the other rolling dependency: a change to ghcr.io/mlacayoemery/esgame:master
+        # that stops PLACES' config/data/map assets being served correctly.
+        run: test/smoke.sh
