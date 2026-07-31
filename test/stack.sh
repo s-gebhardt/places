@@ -92,8 +92,18 @@ check "GeoServer default password is rejected" \
 # --- the frontend overlay -------------------------------------------------------------------
 fe="http://localhost:${PLACES_FRONTEND_PORT}"
 check "frontend serves"                   "curl -fs ${fe}/ -o /dev/null"
-check "CALC_URL injected at run time"     "curl -fs ${fe}/assets/config.json | grep -q ':${PLACES_CALC_PORT}'"
-check "frontend is PLACES, not upstream"  "curl -fs ${fe}/assets/data.json | grep -q 'Agriculture Edition V.2'"
+# Bodies captured first, NOT piped into `grep -q`. grep -q exits the moment it matches, curl
+# then fails writing the rest and, with `set -o pipefail` (line 18), the pipeline reports the
+# check as failed — precisely BECAUSE the pattern matched. Whether it bites depends on whether
+# curl finishes writing before grep exits, which is what makes it look intermittent.
+#
+# Hardening, not a fix for something observed: this did bite esgame's ingress-test.sh and is
+# documented there, but five attempts against these two files (14KB) did not reproduce it. The
+# shape is here, the bodies are just small enough today.
+cfg_body=$(curl -fs "${fe}/assets/config.json" || true)
+data_body=$(curl -fs "${fe}/assets/data.json" || true)
+check "CALC_URL injected at run time"     "grep -q ':${PLACES_CALC_PORT}' <<<\"\${cfg_body}\""
+check "frontend is PLACES, not upstream"  "grep -q 'Agriculture Edition V.2' <<<\"\${data_body}\""
 
 # --- a real round ---------------------------------------------------------------------------
 # The ids are read out of LU_and_NEW_hexa.tif rather than assumed. They are NOT a contiguous
