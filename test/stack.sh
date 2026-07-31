@@ -110,6 +110,23 @@ board_n=$(tr ',' '\n' < /tmp/places-ids.txt | grep -c .)
 echo "    ${board_n} board ids"
 check "read 465 board ids from the raster" "[ '${board_n}' = '465' ]"
 
+# The count alone does not identify the raster, it only happens to differ. The contract is the
+# ID SPACE: the board numbers its hexagons in hundreds (100, 200 … 46500), and the copy shipped
+# in the frontend assets numbers a different set 10-474. Measured 2026-07-31:
+#
+#   frontend copy   455 ids   min 10    max 474      multiples of 100: no
+#   data release    465 ids   min 100   max 46500    multiples of 100: yes
+#
+# Mount the wrong one and every check here still passes: the round returns 200, publishes all
+# its coverages, and scores an allocation it has almost entirely ignored. This is the check that
+# tells them apart for the reason that matters rather than by a coincidence of counting.
+id_min=$(tr ',' '\n' < /tmp/places-ids.txt | sort -n | head -1)
+id_max=$(tr ',' '\n' < /tmp/places-ids.txt | sort -n | tail -1)
+in_hundreds=$(tr ',' '\n' < /tmp/places-ids.txt | awk 'NF && $1 % 100 != 0 {bad++} END {print bad+0}')
+echo "    id space: ${id_min}..${id_max}, ${in_hundreds} not a multiple of 100"
+check "board ids are the data-release id space" \
+  "[ -n '${id_min}' ] && [ '${in_hundreds}' = '0' ] && [ '${id_max}' -gt '10000' ]"
+
 # allocation is an ARRAY OF OBJECTS {id, lulc} — jsonlite turns that into the two-column
 # reclassification matrix raster::reclassify wants. An id-keyed object instead fails with
 # "comparison of these types is not implemented" and a 500.
