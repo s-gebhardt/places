@@ -74,6 +74,20 @@ WORKDIR /app
 
 COPY . .
 
+# Match the uid the esgame base's Deployment asserts (mlacayoemery/esgame, calculation-deployment
+# securityContext: runAsNonRoot + runAsUser: 10001). Without this the pod still runs — runAsUser
+# forces the uid whether or not the image has it — but as an unnamed user with no ownership of
+# /app, which works only because the geodata volume happens to be world-writable. Declaring the
+# user makes that intentional instead of incidental.
+#
+# /app/data is a PVC here, so its ownership comes from the volume (fsGroup), not from this line;
+# the mkdir is only so the mount point exists and is owned sensibly when there is no volume.
+RUN useradd --system --uid 10001 --gid 0 --no-create-home --shell /usr/sbin/nologin places \
+ && mkdir -p /app/data \
+ && chown -R 10001:0 /app \
+ && chmod -R g=u /app
+USER 10001
+
 EXPOSE 8000
 
 CMD ["/app/calculation.r"]
