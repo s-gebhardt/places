@@ -10,13 +10,17 @@ name: Validate the esgame overlay
 #
 # Deliberately excluded: test/stack.sh. It needs the geodata cache and a ~15 minute R image
 # build, which is not a sensible thing to run on every push. Run it by hand — see the README.
+#
+# calculation/ was excluded too, which meant a syntax error in calculation.r surfaced only when
+# someone built that image and ran the stack. Building it in CI is still not sensible; PARSING
+# it is nearly free, so that is what the r-syntax job does.
 
 on:
   push:
     branches: ['**']
-    paths: ['deploy/**', 'frontend/**', 'test/**', '.github/workflows/overlay.yml']
+    paths: ['deploy/**', 'frontend/**', 'test/**', 'calculation/**', '.github/workflows/overlay.yml']
   pull_request:
-    paths: ['deploy/**', 'frontend/**', 'test/**', '.github/workflows/overlay.yml']
+    paths: ['deploy/**', 'frontend/**', 'test/**', 'calculation/**', '.github/workflows/overlay.yml']
   schedule:
     # 05:40 UTC. Off the hour on purpose: scheduled jobs landing exactly on :00 queue behind
     # everyone else's.
@@ -51,3 +55,24 @@ jobs:
         # Catches the other rolling dependency: a change to ghcr.io/mlacayoemery/esgame:master
         # that stops PLACES' config/data/map assets being served correctly.
         run: test/smoke.sh
+
+  r-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Parsing is not running: this catches a syntax error, not a wrong reclassify. That is the
+      # right trade — the alternative was no gate at all on calculation/, because the image takes
+      # ~15 minutes to build and CI has no geodata to run it against.
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: 'release'
+          install-r: false
+
+      - name: calculation.r must parse
+        run: |
+          set -euo pipefail
+          # Presence first: a renamed file would otherwise make this pass by checking nothing.
+          test -f calculation/calculation.r \
+            || { echo "::error::calculation/calculation.r is missing; this check covers nothing"; exit 1; }
+          Rscript -e 'invisible(parse("calculation/calculation.r")); cat("calculation.r parses\n")'
