@@ -23,7 +23,7 @@ list()
 
 #* @post /esgame
 #* @serializer unboxedJSON
-esgame <- function(req, json_in='{}') {
+esgame <- function(req, res, json_in='{}') {
   geoserver_url <- Sys.getenv("GEOSERVER")
   #NEW CODE --> ALLOW TO SEND DATA IN BODY OF Request
   if (!(json_in == '' || json_in == '{}')) { 
@@ -39,6 +39,36 @@ esgame <- function(req, json_in='{}') {
     score_PD <- req$body$score
     map_AG <- req$body$allocation
   }
+
+  # Refuse an allocation that cannot be scored, rather than letting it reach reclassify().
+  #
+  # Ported from esgame (mlacayoemery/esgame#155), which has the identical handler. There, an
+  # empty allocation warned "the round will score the base raster unchanged" and then died
+  # several frames later with "Not compatible with requested type: [type=list; target=double]",
+  # which plumber renders as a bare {"error":"500 - Internal server error"}.
+  #
+  # test/stack.sh already documents the id-keyed variant of this: an object instead of an array
+  # of {id, lulc} gives "comparison of these types is not implemented" and a 500. That comment
+  # existed because someone hit it and had to work out why.
+  bad <- NULL
+  if (is.null(map_AG)) {
+    bad <- "the request has no 'allocation' field"
+  } else if (length(map_AG) == 0) {
+    bad <- "'allocation' is empty"
+  } else if (is.data.frame(map_AG) && !all(c("id", "lulc") %in% names(map_AG))) {
+    bad <- paste0("'allocation' has columns [", paste(names(map_AG), collapse = ", "),
+                  "]; it needs id and lulc")
+  } else if (!is.data.frame(map_AG)) {
+    bad <- paste0("'allocation' is a ", class(map_AG)[1],
+                  "; it must be an array of {id, lulc} objects")
+  }
+  if (!is.null(bad)) {
+    logger::log_error("Refusing the round: {bad}.")
+    res$status <- 400
+    return(list(error = paste0("Cannot score this round: ", bad,
+                               ". Expected {\"allocation\": [{\"id\": <number>, \"lulc\": <number>}, ...]}.")))
+  }
+
   return(calculate(req, geoserver_url, game_id, round_id, score_PD, map_AG))
 }
 
