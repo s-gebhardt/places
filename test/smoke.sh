@@ -30,4 +30,24 @@ check "data.json is PLACES (title V.2!)"           "curl -fs $b/assets/data.json
 check "data.json carries visualOptions"            "curl -fs $b/assets/data.json | grep -q 'visualOptions'"
 check "place-specific map TIFF is served"          "curl -fs -o /dev/null $b/assets/images/suit_arable_ext_norm2.tif"
 
+# The frontend validates its data file at run time (see mlacayoemery/esgame#154), so a value it
+# does not recognise means a console error and a silent fallback for whoever opens the game. The
+# names come from esgame's DefaultGradients, plus "custom" — the marker a map uses to say its
+# colours come from customColorId, which this file's Background map does.
+#
+# That marker being mistaken for a typo is not hypothetical: it was, upstream, and every load of
+# the game logged an error about a correct configuration until esgame#161.
+echo "==> gradients the frontend will recognise"
+grads=$(curl -fs "$b/assets/data.json" | python3 -c "
+import json,sys
+print(' '.join(sorted({m.get('gradient') for m in json.load(sys.stdin).get('maps',[]) if m.get('gradient')})))")
+echo "    ${grads:-<none>}"
+known="blue green orange purple red yellow custom"
+bad=""
+for g in ${grads}; do case " ${known} " in *" ${g} "*) ;; *) bad="${bad} ${g}";; esac; done
+# Presence first: an empty list would validate nothing and report success.
+check "data.json names some gradients"            "[ -n '${grads}' ]"
+check "every gradient is one the frontend knows"  "[ -z '${bad}' ]"
+[ -n "${bad}" ] && echo "    unknown:${bad} (known: ${known})"
+
 if [ "${fail}" = 0 ]; then echo "PLACES overlay smoke test: PASS"; else echo "PLACES overlay smoke test: FAIL"; exit 1; fi
