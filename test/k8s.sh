@@ -71,6 +71,38 @@ check "public GeoServer URL is set"         "[ -n '${public}' ]"
 check "public GeoServer URL is not internal" "[ '${internal}' != '${public}' ]"
 check "public GeoServer URL is not a Service" "! grep -q 'esgame-geoserver-service' <<<'${public}'"
 
+# ...but "not the internal one" is a weak thing to ask. A browser-facing URL has to name the
+# host an Ingress in THIS overlay actually serves, and nothing here compared the two — so
+# CALC_URL sat at esgame-calculation.containers.wurnet.nl while the calculation Ingress served
+# change-me-places-calculation.example.com, with a comment one line above saying they must
+# match. Every check in this file passed. The browser would have posted to a host this cluster
+# does not answer for, and the failure surfaces only in a browser.
+#
+# Pair each public URL with its own Ingress by NAME. Positional matching would silently pass if
+# the ingresses ever render in a different order.
+pairs=$(python3 - "${rendered}" <<'PY'
+import sys, yaml
+from urllib.parse import urlparse
+docs = [d for d in yaml.safe_load_all(open(sys.argv[1])) if d]
+cfg = next((d['data'] for d in docs
+            if d.get('kind') == 'ConfigMap' and d['metadata']['name'] == 'esgame-config'), {})
+hosts = {d['metadata']['name']: d['spec']['rules'][0].get('host')
+         for d in docs if d.get('kind') == 'Ingress' and d['spec'].get('rules')}
+for var, ing in (('CALC_URL', 'esgame-calculation-ingress'),
+                 ('GEOSERVER_PUBLIC_URL', 'esgame-geoserver-ingress')):
+    url = cfg.get(var, '')
+    # Print even when a piece is missing, so the check below sees a mismatch rather than
+    # no line at all — a missing pair must fail, not vanish.
+    print(f"{var}\t{urlparse(url).hostname or '<unset>'}\t{hosts.get(ing) or '<no-ingress>'}")
+PY
+)
+printf '%s\n' "${pairs}" | while IFS=$'\t' read -r v u h; do echo "     ${v}: url=${u} ingress=${h}"; done
+# Presence first: two lines, or the comparison below is comparing nothing.
+check "both public URLs were resolved"      "[ \"\$(printf '%s\n' \"\${pairs}\" | grep -c .)\" -eq 2 ]"
+mismatch=$(printf '%s\n' "${pairs}" | awk -F'\t' '$2 != $3 {print $1}')
+check "public URLs match their ingress host" "[ -z '${mismatch}' ]"
+[ -n "${mismatch}" ] && echo "       mismatched: ${mismatch}"
+
 # An Ingress host must be a valid RFC 1123 subdomain. The schema does not enforce it, so an
 # uppercase placeholder passes kubeconform and is then rejected by the API server:
 #   spec.rules[0].host: Invalid value: "CHANGE-ME-places.example.com": a lowercase RFC 1123

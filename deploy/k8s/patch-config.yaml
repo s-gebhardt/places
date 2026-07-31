@@ -3,8 +3,15 @@ kind: ConfigMap
 metadata:
   name: esgame-config
 data:
-  # Public calculation URL the browser posts to (must match the calculation ingress host above).
-  CALC_URL: "https://esgame-calculation.containers.wurnet.nl/esgame"
+  # Public calculation URL the browser posts to. The host must be the esgame-calculation-ingress
+  # host in kustomization.yaml — this is where the browser POSTs, so a host no Ingress here
+  # serves means the round fails in the browser and nowhere else. It said "must match" and did
+  # not: it pointed at esgame-calculation.containers.wurnet.nl, a host belonging to a different
+  # deployment. test/k8s.sh now compares the two.
+  #
+  # Include the port if the ingress is not on 443/80. A browser cannot infer it, and a portless
+  # URL sends the POST to 443 where nothing may be listening.
+  CALC_URL: "https://change-me-places-calculation.example.com/esgame"
   # Server-to-server: the calculation publishes coverages over GeoServer's REST API from inside
   # the cluster.
   GEOSERVER_URL: "http://esgame-geoserver-service:8080/geoserver"
