@@ -114,7 +114,32 @@ the calculation publishes coverages over the REST API from inside the network. `
 is what the WCS URLs in the response are built from, and those are fetched by the **browser** — set
 it to the in-network name and every round returns `200` with coverage URLs no client can resolve.
 
-### Testing it
+### Running it on a real cluster
+
+`deploy/k8s` is what a deployment applies. Until now it had only ever been *rendered* —
+`test/k8s.sh` checks what kustomize produces, and nothing had put traffic through an Ingress.
+`test/stack.sh` plays a real round, but over published host ports, so it proves the calculation
+and GeoServer work and proves nothing about the proxy in front of them.
+
+```sh
+# once, from an esgame checkout — one ingress-nginx serves both stacks
+deploy/k8s/kind.sh up
+
+deploy/kind/kind.sh up            # namespace, geodata server, secrets, apply, wait
+deploy/kind/ingress-test.sh       # a real round THROUGH the ingress, by Host header
+deploy/kind/kind.sh down
+```
+
+It runs in its own `places` namespace, because this overlay inherits the esgame base's resource
+names — the Deployments really are called `esgame-angular`, `esgame-calculation`,
+`esgame-geoserver` — so applying it into `default` beside a running esgame would overwrite it.
+
+The first thing this found was a 504: ingress-nginx defaults `proxy_read_timeout` to 60s and a
+PLACES round takes 62-66s, so the calculator finished, published every coverage, and the client
+got `504 Gateway Time-out`. Fixed upstream in mlacayoemery/esgame#162, which this repository
+inherits through its rolling base ref.
+
+## Testing it
 
 ```sh
 test/stack.sh          # brings the stack up, plays a real round, asserts the result is usable

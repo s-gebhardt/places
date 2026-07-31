@@ -1,0 +1,78 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# The PLACES overlay, made deployable to a local kind cluster with a real ingress controller.
+#
+# Until now deploy/k8s had only ever been RENDERED — test/k8s.sh checks what kustomize produces
+# and nothing had applied it to a cluster or put traffic through it. The compose stack in
+# test/stack.sh plays a real round, but over published host ports rather than an Ingress.
+#
+#   deploy/kind/kind.sh up            # namespace, geodata server, secrets, apply
+#   deploy/kind/ingress-test.sh       # a real round through the ingress, by Host header
+#   deploy/kind/kind.sh down
+#
+# It lives in deploy/kind rather than deploy/k8s/overlays/kind because deploy/k8s IS the overlay
+# — kustomize refuses a base that contains its own overlay ("cycle detected: candidate root
+# .../deploy/k8s contains visited root .../deploy/k8s/overlays/kind").
+#
+# It reuses the esgame kind cluster (deploy/k8s/kind.sh in that repository) rather than creating
+# another, because one ingress-nginx on one host port is enough for both.
+namespace: places
+
+resources:
+  - ../k8s
+  - geodata-server.yaml
+
+# NAMESPACED ON PURPOSE. This overlay inherits the esgame base's resource names — the
+# Deployments really are called esgame-angular, esgame-calculation, esgame-geoserver — so
+# applying it into `default` alongside a running esgame would overwrite that deployment rather
+# than sit beside it. The namespace is what keeps the two apart on one cluster.
+
+images:
+  # Keyed on what the PARENT overlay rewrote these to, not on the base's logical names and not
+  # on the ghcr defaults. Kustomize applies each images transformer in turn, so by the time this
+  # one runs the only names present are the CHANGE-ME-registry ones deploy/k8s produces. An
+  # entry keyed on anything else matches nothing and silently leaves them in place — which is
+  # the exact mistake this repository already shipped once.
+  - name: CHANGE-ME-registry/places-frontend
+    newName: localhost:5001/places-frontend
+    newTag: local
+  - name: CHANGE-ME-registry/places-calculation
+    newName: localhost:5001/places-calculation
+    newTag: local
+
+patches:
+  # Browser-facing hosts and URLs. The :8880 is load-bearing — kind publishes ingress-nginx on a
+  # host port, not on 80, and a browser given a portless URL posts to 80 where nothing listens.
+  - target: { kind: ConfigMap, name: esgame-config }
+    patch: |
+      - op: replace
+        path: /data/CALC_URL
+        value: http://places-calculation.local:8880/esgame
+      - op: replace
+        path: /data/GEOSERVER_PUBLIC_URL
+        value: http://places-geoserver.local:8880/geoserver
+  - target: { kind: Ingress, name: esgame-angular-ingress }
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: places.local
+      - op: add
+        path: /spec/ingressClassName
+        value: nginx
+  - target: { kind: Ingress, name: esgame-calculation-ingress }
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: places-calculation.local
+      - op: add
+        path: /spec/ingressClassName
+        value: nginx
+  - target: { kind: Ingress, name: esgame-geoserver-ingress }
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: places-geoserver.local
+      - op: add
+        path: /spec/ingressClassName
+        value: nginx

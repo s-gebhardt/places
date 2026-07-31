@@ -1,0 +1,39 @@
+# Serves the geodata release over HTTP inside the cluster, so load-geodata fetches it from a URL
+# exactly as it would in a real deployment. LOCAL TESTING ONLY — a real deployment points
+# places-geodata-source at wherever its release actually lives, and does not run this at all.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: places-geodata-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: places-geodata-server }
+  template:
+    metadata:
+      labels: { app: places-geodata-server }
+    spec:
+      containers:
+        - name: nginx
+          image: localhost:5001/places-geodata-server:local
+          ports: [{ containerPort: 80 }]
+          readinessProbe:
+            # The tarball itself, not /: this must not report ready until the file it exists to
+            # serve is actually being served, or load-geodata races it and the pod crash-loops.
+            httpGet: { path: /places-geodata.tar.gz, port: 80 }
+            initialDelaySeconds: 2
+            periodSeconds: 3
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 200m, memory: 64Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            seccompProfile: { type: RuntimeDefault }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: places-geodata-server
+spec:
+  selector: { app: places-geodata-server }
+  ports: [{ port: 80, targetPort: 80 }]
