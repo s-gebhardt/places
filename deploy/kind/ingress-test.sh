@@ -33,7 +33,11 @@ done
 echo "==> the frontend is PLACES, through the ingress"
 body=$(ing places.local / || true)
 check "places.local serves the app"        "[ \"\$(code places.local /)\" = 200 ]"
-check "index.html is really the app"       "grep -qi '<app-root\|<title' <<<\"\${body}\""
+# `<app-root` only. With '<app-root\|<title' this matched ingress-nginx's own 404 page —
+# "<html><head><title>404 Not Found</title>..." — so with nothing serving places.local it
+# reported that the app really was being served. Found by running this script against a deleted
+# deployment, which is the only way that shape shows up.
+check "index.html is really the app"       "grep -qi '<app-root' <<<\"\${body}\""
 data=$(ing places.local /assets/data.json || true)
 # The whole point of the overlay: PLACES' own data, not the upstream esgame image's.
 check "data.json is PLACES (title V.2)"    "grep -q 'Agriculture Edition V.2' <<<\"\${data}\""
@@ -96,7 +100,14 @@ start=$(date +%s)
 res=$(curl -s -m 900 -H 'Host: places-calculation.local' -H 'Content-Type: application/json' \
         --data @/tmp/places-kind-payload.json "${BASE}/esgame" || true)
 echo "     POST /esgame -> $(( $(date +%s) - start ))s"
-check "round returns something"            "[ -n '${res}' ]"
+# Not `-n`: with nothing serving, the POST comes back as nginx's 404 HTML — 145 bytes of it —
+# which is very much "something". The round has to have returned the shape the frontend parses.
+check "round returned JSON with results"   "python3 -c \"
+import json,sys
+try: r=json.loads(sys.argv[1])
+except Exception: sys.exit(1)
+rs=r.get('results', r) if isinstance(r,dict) else r
+sys.exit(0 if isinstance(rs,list) and rs else 1)\" '${res}'"
 
 scored=$(python3 - <<PY
 import json
