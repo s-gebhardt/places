@@ -13,13 +13,26 @@ NAME=places-smoke
 cd "$(dirname "$0")/.."
 
 echo "building places-frontend FROM ${ESGAME_IMAGE}"
-docker build -q --build-arg ESGAME_IMAGE="${ESGAME_IMAGE}" -t places-frontend:smoke frontend >/dev/null
+# --pull is what makes this a test of the ROLLING tag rather than of whatever is cached here.
+# Without it, a machine holding a week-old ghcr.io/.../esgame:master builds on that and reports
+# PASS about an image nobody is running — which is exactly what happened on 2026-08-06: the
+# esgame base had moved to an unprivileged nginx on 8080 and this passed against a July 31 copy.
+# CI happens to be cold, so it would have caught it there; that is luck, not design.
+docker build -q --pull --build-arg ESGAME_IMAGE="${ESGAME_IMAGE}" -t places-frontend:smoke frontend >/dev/null
+echo "  base: $(docker image inspect "${ESGAME_IMAGE}" --format '{{index .RepoDigests 0}}' 2>/dev/null || echo "${ESGAME_IMAGE} (local, no digest)")"
 
 docker rm -f "${NAME}" >/dev/null 2>&1 || true
-docker run -d --name "${NAME}" -e CALC_URL=http://localhost:8000 -p "${PORT}:80" places-frontend:smoke >/dev/null
+# 8080, not 80: the esgame base runs nginx unprivileged as uid 101 (mlacayoemery/esgame#166).
+docker run -d --name "${NAME}" -e CALC_URL=http://localhost:8000 -p "${PORT}:8080" places-frontend:smoke >/dev/null
 trap 'docker rm -f "${NAME}" >/dev/null 2>&1 || true' EXIT
-sleep 2
 b="http://localhost:${PORT}"
+
+# Poll rather than sleep-and-hope. A fixed sleep that is a little too short reads as "every asset
+# is missing" — five FAILs that look like a broken overlay rather than a container still starting.
+for _ in $(seq 1 30); do
+  curl -fs -o /dev/null "$b/" && break
+  sleep 1
+done
 
 fail=0
 check() { if eval "$2" >/dev/null 2>&1; then echo "  ok   $1"; else echo "  FAIL $1"; fail=1; fi; }
@@ -38,9 +51,12 @@ check "place-specific map TIFF is served"          "curl -fs -o /dev/null $b/ass
 # That marker being mistaken for a typo is not hypothetical: it was, upstream, and every load of
 # the game logged an error about a correct configuration until esgame#161.
 echo "==> gradients the frontend will recognise"
-grads=$(curl -fs "$b/assets/data.json" | python3 -c "
+# `|| true` on the parse: when the frontend is not serving, curl hands python an empty stdin and
+# json.load raises, which under `set -e` printed a 20-line traceback over the check output. The
+# checks below already report the empty result properly; a stack trace only hides them.
+grads=$(curl -fs "$b/assets/data.json" 2>/dev/null | python3 -c "
 import json,sys
-print(' '.join(sorted({m.get('gradient') for m in json.load(sys.stdin).get('maps',[]) if m.get('gradient')})))")
+print(' '.join(sorted({m.get('gradient') for m in json.load(sys.stdin).get('maps',[]) if m.get('gradient')})))" 2>/dev/null || true)
 echo "    ${grads:-<none>}"
 known="blue green orange purple red yellow custom"
 bad=""

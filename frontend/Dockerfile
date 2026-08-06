@@ -12,5 +12,10 @@ FROM ${ESGAME_IMAGE}
 
 # Overlay PLACES' dynamic-game config (data.json carries its visualOptions + gradientOverrides) and
 # its map rasters. nginx serves assets/*.json as no-store, so config still applies on reload.
-COPY data.json config.json /usr/share/nginx/html/assets/
-COPY assets/images/ /usr/share/nginx/html/assets/images/
+#
+# --chown=101:101 because the base image runs as that uid and its entrypoint replaces config.json
+# in place to inject CALC_URL. A plain COPY lands these root-owned, which happens to still work —
+# the *directory* is nginx-owned, so `mv` can replace a file it does not own — but relying on that
+# is one sticky bit, or one in-place `sed -i` upstream, away from a container that will not start.
+COPY --chown=101:101 data.json config.json /usr/share/nginx/html/assets/
+COPY --chown=101:101 assets/images/ /usr/share/nginx/html/assets/images/

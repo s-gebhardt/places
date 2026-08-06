@@ -32,7 +32,9 @@ services:
       # The browser posts here (client-side); for prod set this to the public calculation ingress.
       CALC_URL: ${CALC_URL:-http://localhost:8000}
     ports:
-      - "${PLACES_FRONTEND_PORT:-81}:80"
+      # 8080 container-side: the esgame base runs nginx unprivileged as uid 101
+      # (mlacayoemery/esgame#166). The published host port is unchanged.
+      - "${PLACES_FRONTEND_PORT:-81}:8080"
 
   # Populates /app/data before the calculation starts — the compose analogue of the k8s
   # `load-geodata` init container, and deliberately the same shape.
