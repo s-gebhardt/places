@@ -180,12 +180,30 @@ for it in rows:
     print(f"    {name:<30} score={s}{'' if ok else '   <-- NOT A FINITE NUMBER'}")
 print(f"FINITE_SCORES={scored}")
 print("URLS=" + " ".join(urls))
+# How much of the allocation the model could actually use. reclassify() drops any id that is
+# not in the base raster, silently, so every assertion above passes on a round that ignored the
+# player entirely — the scores come back finite either way. See mlacayoemery/esgame#170.
+cov = json.load(open(sys.argv[1])).get("allocationCoverage")
+print("COVERAGE=" + ("" if not cov else f"{cov['matched']}/{cov['allocated']}"))
+print("COVERAGE_FRACTION=" + ("" if not cov else str(cov.get("fraction"))))
 PY
-grep -v '^FINITE_SCORES\|^URLS=' /tmp/places-summary.txt
+grep -v '^FINITE_SCORES\|^URLS=\|^COVERAGE' /tmp/places-summary.txt
 finite=$(grep '^FINITE_SCORES=' /tmp/places-summary.txt | cut -d= -f2)
 urls=$(grep '^URLS=' /tmp/places-summary.txt | cut -d= -f2-)
+coverage=$(grep '^COVERAGE=' /tmp/places-summary.txt | cut -d= -f2)
+coverage_fraction=$(grep '^COVERAGE_FRACTION=' /tmp/places-summary.txt | cut -d= -f2)
 
 check "all six indicators scored (not NaN)" "[ -n '${finite}' ] && [ '${finite}' = 6 ]"
+
+# Everything above this line passes on a round the model ignored: reclassify() drops ids it does
+# not recognise without a word, and the scores are finite constants either way. This is the only
+# assertion here that tells "scored" from "ignored".
+echo "    allocation the model could use: ${coverage:-<not reported>}"
+check "the calculator reported allocation coverage" "[ -n '${coverage}' ]"
+# PLACES ships the data-release raster, so its ids ARE the board's. Anything less than half means
+# /app/data holds the wrong raster — which is exactly the state the esgame repo ships in.
+check "the round was actually scored, not ignored" \
+  "[ -n '${coverage_fraction}' ] && python3 -c \"import sys; sys.exit(0 if float('${coverage_fraction}') >= 0.5 else 1)\""
 # The spider plot is served by plumber itself out of /app/data (@assets /app/data /images), so it
 # also proves the output side of that writable volume.
 plot_url=$(tr ' ' '\n' <<<"${urls}" | grep '\.png$' | head -1)

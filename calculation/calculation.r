@@ -101,7 +101,11 @@ calculate<-function(req, geoserver_url, game_id, round_id,score_PD,map_AG) {
   # reclassify() silently ignores ids that are not in the raster, so an allocation from a
   # different id space yields a 200, published coverages, and scores that never move. See
   # coverage.R — the frontend-assets copy of this raster shares only 4 of 465 ids with the board.
-  esgame_report_coverage(LU_hexa, map_AG)
+  # Kept, not just logged. The log line is inside the container; the person who needs it is the
+  # one running the workshop. It goes back in the response — see the end of this function, and
+  # mlacayoemery/esgame#170, which added the frontend half. The frontend is the shared esgame
+  # image, so PLACES gets the warning for free by sending the field.
+  coverage_stats <- esgame_report_coverage(LU_hexa, map_AG)
   LU_complete<-reclassify(LU_hexa, map_AG, right=F) # no value can be 1!!!!
   writeRaster(x=LU_complete, filename=paste0("LU_", "Game_",game_id,"_Round_",round_id,".tif"),overwrite=TRUE, NAflag=-9999)
 
@@ -789,5 +793,21 @@ calculate<-function(req, geoserver_url, game_id, round_id,score_PD,map_AG) {
   
   
   
-  return(list(results = calculated_rasters))
+  # `results` is unchanged: every existing client keys off it. allocationCoverage is additive and
+  # optional, so a client that ignores it behaves exactly as before.
+  #
+  # Omitted entirely rather than sent as nulls when the diagnostic itself failed:
+  # esgame_report_coverage returns NULL in that case, and a client cannot tell "0% matched" from
+  # "could not measure" if both arrive as zeroes.
+  if (is.null(coverage_stats)) {
+    return(list(results = calculated_rasters))
+  }
+  return(list(
+    results = calculated_rasters,
+    allocationCoverage = list(
+      allocated = coverage_stats$allocated,
+      matched   = coverage_stats$matched,
+      fraction  = coverage_stats$fraction
+    )
+  ))
 }
