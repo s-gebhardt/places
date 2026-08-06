@@ -22,7 +22,16 @@ rendered=$(mktemp); trap 'rm -f "${rendered}"' EXIT
 kustomize build deploy/k8s > "${rendered}"
 
 fail=0
-check() { if eval "$2" >/dev/null 2>&1; then echo "  ok   $1"; else echo "  FAIL $1"; fail=1; fi; }
+# Counted, not hand-tallied, and floored. Two failures in one: a number in a document drifts the
+# moment a check is added inside a loop (upstream's ingress-test.sh said 16 while running 18), and
+# a script whose every check is guarded by data it fetched will report PASS having run none of
+# them if the fetch failed early. See mlacayoemery/esgame#173.
+checks=0
+passed=0
+check() {
+  checks=$((checks + 1))
+  if eval "$2" >/dev/null 2>&1; then passed=$((passed + 1)); echo "  ok   $1"; else echo "  FAIL $1"; fail=1; fi
+}
 
 images=$(grep -E '^\s+image:' "${rendered}" | awk '{print $2}')
 
@@ -127,4 +136,12 @@ else
   echo "  skip kubeconform not installed"
 fi
 
-if [ "${fail}" = 0 ]; then echo "PLACES k8s overlay test: PASS"; else echo "PLACES k8s overlay test: FAIL"; exit 1; fi
+if [ "${checks}" -lt 15 ]; then
+  echo "PLACES k8s overlay test: FAIL   only ${checks} checks ran; this file covers more than that"
+  exit 1
+fi
+if [ "${fail}" = 0 ]; then
+  echo "PLACES k8s overlay test: PASS   ${passed}/${checks} checks"
+else
+  echo "PLACES k8s overlay test: FAIL   ${passed}/${checks} checks"; exit 1
+fi

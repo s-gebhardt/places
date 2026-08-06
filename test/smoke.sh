@@ -35,7 +35,16 @@ for _ in $(seq 1 30); do
 done
 
 fail=0
-check() { if eval "$2" >/dev/null 2>&1; then echo "  ok   $1"; else echo "  FAIL $1"; fail=1; fi; }
+# Counted, not hand-tallied, and floored. Two failures in one: a number in a document drifts the
+# moment a check is added inside a loop (upstream's ingress-test.sh said 16 while running 18), and
+# a script whose every check is guarded by data it fetched will report PASS having run none of
+# them if the fetch failed early. See mlacayoemery/esgame#173.
+checks=0
+passed=0
+check() {
+  checks=$((checks + 1))
+  if eval "$2" >/dev/null 2>&1; then passed=$((passed + 1)); echo "  ok   $1"; else echo "  FAIL $1"; fail=1; fi
+}
 
 check "CALC_URL injected into config.json"        "curl -fs $b/assets/config.json | grep -q 'localhost:8000'"
 check "defaultMode is dynamic (lands on the game)" "curl -fs $b/assets/config.json | grep -q '\"defaultMode\".*\"dynamic\"'"
@@ -66,4 +75,12 @@ check "data.json names some gradients"            "[ -n '${grads}' ]"
 check "every gradient is one the frontend knows"  "[ -z '${bad}' ]"
 [ -n "${bad}" ] && echo "    unknown:${bad} (known: ${known})"
 
-if [ "${fail}" = 0 ]; then echo "PLACES overlay smoke test: PASS"; else echo "PLACES overlay smoke test: FAIL"; exit 1; fi
+if [ "${checks}" -lt 5 ]; then
+  echo "PLACES overlay smoke test: FAIL   only ${checks} checks ran; this file covers more than that"
+  exit 1
+fi
+if [ "${fail}" = 0 ]; then
+  echo "PLACES overlay smoke test: PASS   ${passed}/${checks} checks"
+else
+  echo "PLACES overlay smoke test: FAIL   ${passed}/${checks} checks"; exit 1
+fi
