@@ -25,16 +25,26 @@ esgame_allocation_ids <- function(map_AG) {
   suppressWarnings(as.numeric(map_AG))
 }
 
+# The arithmetic, separated from the raster read so it can be tested without GDAL on the machine.
+# That is the whole reason this is its own function: everything below needs `raster` and `logger`,
+# and requiring those to test "does 4 of 465 come out as 0.0086" put the only thing standing
+# between a scored round and an ignored one out of reach of any test. See test-coverage.R.
+#
+# `alloc` and `present` are id vectors, already read out of the request and the raster.
+esgame_coverage_stats <- function(alloc, present) {
+  alloc <- unique(stats::na.omit(alloc))
+  present <- unique(stats::na.omit(present))
+  matched <- length(intersect(alloc, present))
+  list(allocated = length(alloc),
+       matched   = matched,
+       fraction  = if (length(alloc)) matched / length(alloc) else 0)
+}
+
 # Returns the stats invisibly so a caller can assert on them; logs as a side effect.
 esgame_report_coverage <- function(LU_hexa, map_AG, warn_below = 0.5) {
-  stats <- tryCatch({
-    alloc <- unique(stats::na.omit(esgame_allocation_ids(map_AG)))
-    present <- unique(stats::na.omit(raster::values(LU_hexa)))
-    matched <- length(intersect(alloc, present))
-    list(allocated = length(alloc),
-         matched   = matched,
-         fraction  = if (length(alloc)) matched / length(alloc) else 0)
-  }, error = function(e) NULL)
+  stats <- tryCatch(
+    esgame_coverage_stats(esgame_allocation_ids(map_AG), raster::values(LU_hexa)),
+    error = function(e) NULL)
 
   # Never let a diagnostic break a round.
   if (is.null(stats)) {

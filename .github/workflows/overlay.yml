@@ -77,3 +77,17 @@ jobs:
           test -f calculation/calculation.r \
             || { echo "::error::calculation/calculation.r is missing; this check covers nothing"; exit 1; }
           Rscript -e 'invisible(parse("calculation/calculation.r")); cat("calculation.r parses\n")'
+
+      - name: The coverage reporter must be right, not merely parseable
+        run: |
+          set -euo pipefail
+          # Parsing is not running, and the step above says so. This runs the one piece of R that
+          # decides whether a round was SCORED or IGNORED — a failure that is silent by
+          # construction, since reclassify() drops ids it does not recognise without a word and
+          # the round returns 200 with finite scores either way.
+          #
+          # Base R, no testthat, no raster, no GDAL, so this job installs nothing beyond R.
+          # Mirrors mlacayoemery/esgame#179; coverage.R is byte-identical to that repository's.
+          test -f calculation/test-coverage.R \
+            || { echo "::error::calculation/test-coverage.R is missing; the R behaviour is ungated again"; exit 1; }
+          Rscript calculation/test-coverage.R
