@@ -15,6 +15,28 @@ spec:
             claimName: places-geodata
       containers:
         - name: esgame-calculation
+          # Reserve a whole core. The base asks for 500m, which is right for a development
+          # cluster and wrong here: R Plumber handles ONE REQUEST AT A TIME, so a replica cannot
+          # use more than a single core whatever the limit says, and a busy one sits against it.
+          # At 500m the scheduler packs twice as many calculation pods onto a node as can run at
+          # speed, and capacity scales with replica count rather than with CPU per replica.
+          #
+          # The measurement behind this is esgame's (2026-08-14, cgroup cpu.stat sampled once a
+          # second: ~1.0 core sustained, peak 1.06 over 364 busy seconds). The single-threaded
+          # CEILING generalises to this calculator because it is the same server; the
+          # UTILISATION does not, since places' model reads thirteen rasters rather than one.
+          # If a places round turns out to sit well below a core, this over-reserves — measure
+          # before assuming it is right.
+          #
+          # requests only. limits.cpu stays at the base's 2: it is unreachable, and exactly 1
+          # would throttle almost continuously (177 of 193 busy seconds sat just above 1.00).
+          #
+          # Cost: three replicas now need three free cores, so on a small node they are Pending
+          # rather than slow. See esgame docs/guides/deployer.rst, "Sizing the calculation
+          # backend".
+          resources:
+            requests:
+              cpu: "1"
           # The base wires GEOSERVER (in-cluster) and the admin credentials. places' calculation
           # also needs the browser-facing address, because the WCS URLs it returns are fetched by
           # the client, not by the cluster.
