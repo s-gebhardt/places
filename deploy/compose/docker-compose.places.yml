@@ -30,7 +30,15 @@ services:
     container_name: places-frontend
     environment:
       # The browser posts here (client-side); for prod set this to the public calculation ingress.
-      CALC_URL: ${CALC_URL:-http://localhost:8000}
+      #
+      # THE PATH IS PART OF THE VALUE. calcUrl is the endpoint the app POSTs to, not the origin the
+      # calculator runs on: the esgame frontend hands it to HttpClient.post unchanged and appends
+      # nothing. calculation/calculation.r serves `#* @post /esgame`, so a bare origin here 404s on
+      # every round -- and silently, because the request goes to the calculation port (so the
+      # frontend's nginx never logs it) and is rejected before the plumber handler (so the
+      # calculation does not log it either). The player sees only "Something went wrong".
+      # Same defect, same fix, as upstream esgame's v2/docker-compose.dynamic.yml.
+      CALC_URL: ${CALC_URL:-http://localhost:8000/esgame}
     ports:
       # 8080 container-side: the esgame base runs nginx unprivileged as uid 101
       # (mlacayoemery/esgame#166). The published host port is unchanged.
