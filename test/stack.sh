@@ -24,8 +24,13 @@ COMPOSE_FILE=deploy/compose/docker-compose.places.yml
 export PLACES_FRONTEND_PORT="${PLACES_FRONTEND_PORT:-8186}"
 export PLACES_CALC_PORT="${PLACES_CALC_PORT:-8100}"
 export PLACES_GEOSERVER_PORT="${PLACES_GEOSERVER_PORT:-8180}"
-# The browser-facing addresses must match the ports actually published above.
-export CALC_URL="http://localhost:${PLACES_CALC_PORT}"
+# The browser-facing addresses must match the ports actually published above -- and CALC_URL must
+# carry the calculator's ROUTE, not just its host and port. calculation/calculation.r serves
+# `#* @post /esgame` and the frontend posts to this URL verbatim, so a pathless value 404s on every
+# round. This harness stood the frontend up with one, and then played its round against a URL it
+# built itself, so nothing here could notice. Same defect as the compose default (fixed in 703fe43)
+# and as upstream esgame's (mlacayoemery/esgame#254).
+export CALC_URL="http://localhost:${PLACES_CALC_PORT}/esgame"
 export GEOSERVER_PUBLIC_URL="http://localhost:${PLACES_GEOSERVER_PORT}/geoserver"
 
 # A NON-DEFAULT GeoServer password, on purpose. Two checks below depend on it and both were
