@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Renders the PLACES Kustomize overlay and checks it actually produces PLACES.
+# Renders the PLACES Kustomize overlays and checks they actually produce PLACES.
 #
 # This exists because it silently did not. The overlay keyed its `images:` entries on the
 # esgame base's LOGICAL names (esgame-angular / esgame-calculation). Kustomize applies the
@@ -7,9 +7,11 @@
 # overlay runs: the entries matched nothing, nothing warned, and the overlay rendered
 # cleanly while deploying the UPSTREAM esgame images instead of PLACES'.
 #
-# test/smoke.sh covers the frontend Docker overlay; this covers the k8s one.
+# test/smoke.sh covers the frontend Docker overlay; this covers the k8s ones.
 #
-#   test/k8s.sh
+#   test/k8s.sh                       # deploy/k8s, on the pinned esgame base
+#   test/k8s.sh /abs/path/to/overlay  # your own deployment's overlay of deploy/k8s, kept elsewhere
+#   ESGAME_REF=master test/k8s.sh     # the same checks on esgame master: would a bump break us?
 #
 # Needs kustomize on PATH. kubeconform is used if present, skipped if not.
 set -euo pipefail
@@ -17,9 +19,23 @@ cd "$(dirname "$0")/.."
 
 command -v kustomize >/dev/null || { echo "kustomize not on PATH"; exit 2; }
 
-echo "rendering deploy/k8s (fetches the esgame base by ref)"
-rendered=$(mktemp); trap 'rm -f "${rendered}"' EXIT
-kustomize build deploy/k8s > "${rendered}"
+overlays=("$@")
+[ "${#overlays[@]}" -gt 0 ] || overlays=(deploy/k8s)
+
+work=$(mktemp -d); trap 'rm -rf "${work}"' EXIT
+src=deploy
+if [ -n "${ESGAME_REF:-}" ]; then
+  # Render a COPY with the base ref swapped, so previewing a bump never edits the pin. Checked
+  # rather than trusted: a sed that matches nothing leaves the pinned ref in place, and every
+  # check below would then pass about the base we already run, reported as the one we asked for.
+  cp -R deploy "${work}/deploy"
+  kz="${work}/deploy/k8s/kustomization.yaml"
+  sed -E "s#(esgame//deploy/k8s/base[?]ref=)[^[:space:]]+#\1${ESGAME_REF}#" deploy/k8s/kustomization.yaml > "${kz}"
+  grep -q "esgame//deploy/k8s/base?ref=${ESGAME_REF}\$" "${kz}" \
+    || { echo "could not repoint the esgame base at ${ESGAME_REF}"; exit 2; }
+  src="${work}/deploy"
+fi
+ref=$(grep -oE 'esgame//deploy/k8s/base[?]ref=[^[:space:]]+' "${src}/k8s/kustomization.yaml" | sed 's/.*ref=//')
 
 fail=0
 # Counted, not hand-tallied, and floored. Two failures in one: a number in a document drifts the
@@ -33,6 +49,26 @@ check() {
   if eval "$2" >/dev/null 2>&1; then passed=$((passed + 1)); echo "  ok   $1"; else echo "  FAIL $1"; fail=1; fi
 }
 
+# One pass per overlay, to the `done` near the end. The body is not indented because it holds
+# python heredocs, whose lines and terminators have to stay at column 0.
+n=0
+for overlay in "${overlays[@]}"; do
+n=$((n + 1))
+case "${overlay}" in
+  # Ours: rendered from the copy when ESGAME_REF repointed it.
+  deploy/*) dir="${src}/${overlay#deploy/}"; what="the esgame base at ${ref}" ;;
+  # Anyone's own overlay, from wherever it is kept. It reaches deploy/k8s through its own pinned
+  # reference, so ESGAME_REF cannot repoint it — say so rather than check the pinned base quietly.
+  /*) [ -z "${ESGAME_REF:-}" ] || { echo "${overlay}: ESGAME_REF only applies to overlays under deploy/"; exit 2; }
+      dir="${overlay}"; what="its own references" ;;
+  *) echo "${overlay}: give deploy/<name>, or an absolute path to an overlay kept elsewhere"; exit 2 ;;
+esac
+[ -f "${dir}/kustomization.yaml" ] || { echo "${overlay}: no kustomization.yaml there"; exit 2; }
+
+echo "rendering ${overlay} (fetches ${what})"
+rendered="${work}/${n}.yaml"
+kustomize build "${dir}" > "${rendered}"
+
 images=$(grep -E '^\s+image:' "${rendered}" | awk '{print $2}')
 
 # The point of the overlay: PLACES images, not the upstream ones.
@@ -40,9 +76,12 @@ check "frontend is the PLACES image"        "grep -q 'places-frontend' <<<\"\${i
 check "calculation is the PLACES image"     "grep -q 'places-calculation' <<<\"\${images}\""
 check "no upstream esgame image remains"    "! grep -qE 'ghcr\.io/mlacayoemery/esgame(-calculation)?:' <<<\"\${images}\""
 
-# The base should still supply GeoServer, pinned rather than rolling.
-check "GeoServer comes from the base"       "grep -q 'docker.osgeo.org/geoserver:' <<<\"\${images}\""
-check "GeoServer is not a rolling tag"      "! grep -qE 'geoserver:[0-9]+\.[0-9]+\.x' <<<\"\${images}\""
+# The base should still supply GeoServer, pinned rather than rolling. It is esgame's own non-root
+# image since esgame#208; this checked for docker.osgeo.org/geoserver until that change failed it.
+# The base names it by `:master`, so "not rolling" has to cover branch tags too — it used to catch
+# only N.N.x, and passed the rolling `:master` the base now ships.
+check "GeoServer comes from the base"       "grep -q 'ghcr.io/mlacayoemery/esgame-geoserver:' <<<\"\${images}\""
+check "GeoServer is not a rolling tag"      "! grep -qE 'geoserver:([0-9]+\.[0-9]+\.x|master|main|latest)\$' <<<\"\${images}\""
 
 # The overlay's own additions.
 check "PVC for the geodata is present"      "grep -q 'kind: PersistentVolumeClaim' '${rendered}'"
@@ -135,13 +174,15 @@ if command -v kubeconform >/dev/null; then
 else
   echo "  skip kubeconform not installed"
 fi
+done
 
-if [ "${checks}" -lt 15 ]; then
-  echo "PLACES k8s overlay test: FAIL   only ${checks} checks ran; this file covers more than that"
+floor=$((15 * ${#overlays[@]}))
+if [ "${checks}" -lt "${floor}" ]; then
+  echo "PLACES k8s overlay test: FAIL   only ${checks} checks ran over ${#overlays[@]} overlay(s); this file covers more than that"
   exit 1
 fi
 if [ "${fail}" = 0 ]; then
-  echo "PLACES k8s overlay test: PASS   ${passed}/${checks} checks"
+  echo "PLACES k8s overlay test: PASS   ${passed}/${checks} checks   (${overlays[*]})"
 else
-  echo "PLACES k8s overlay test: FAIL   ${passed}/${checks} checks"; exit 1
+  echo "PLACES k8s overlay test: FAIL   ${passed}/${checks} checks   (${overlays[*]})"; exit 1
 fi

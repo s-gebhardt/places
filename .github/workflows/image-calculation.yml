@@ -1,0 +1,154 @@
+name: Publish the calculation image
+
+# Publishes places-calculation (calculation/, the R Plumber service) to GitHub Container Registry,
+# for the same reason and with the same tags as image-frontend.yml — read that header first,
+# including the part about the package being PUBLIC.
+#
+# Image: ghcr.io/<owner>/places-calculation   tags: sha-<commit>, the branch, the version on v*.
+#
+# Nothing built this image in CI before: overlay.yml only PARSES calculation.r, because the build
+# takes ~15 minutes. That is the right trade for every push and the wrong one for a publish, so
+# this runs only when calculation/ changes on main.
+
+on:
+  push:
+    # feature/esgame-overlay is TEMPORARY: images are needed before that branch reaches main, and
+    # workflow_dispatch only works once a workflow is on the default branch. Drop it after the merge.
+    branches: [main, feature/esgame-overlay]
+    tags: ['v*']
+    paths:
+      - 'calculation/**'
+      - '.github/workflows/image-calculation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    # ~15 minutes is normal for a cold build (eleven R packages against GDAL/PROJ/GEOS). The default
+    # 360 is long enough to hide a hang for hours.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Reclaim runner disk
+        # The image is ~2.6 GB and the build needs several times that in layers. A runner arrives
+        # with ~25 GB free, and "no space left on device" surfaces as an unrelated-looking R
+        # compile error partway through. Same step as esgame's calculation workflow.
+        run: |
+          df -h / | tail -1
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost
+          df -h / | tail -1
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/places-calculation
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=sha
+
+      - uses: docker/build-push-action@v7
+        id: build
+        with:
+          context: calculation
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # No GHA layer cache, as upstream: the image is ~2.6 GB against a 10 GB repository-wide
+          # Actions cache, and it rebuilds only when calculation/ changes, which is rarely.
+
+      - name: The published image must be the calculator
+        # The Dockerfile's own layers prove the R packages LOAD at build time. This proves the
+        # published artefact starts, routes, and refuses what it should — pulled by the sha- tag a
+        # deployment pins.
+        #
+        # No geodata is mounted, and none is needed for this: places' calculation.r reads its
+        # thirteen inputs per round, not at startup, and an empty allocation is refused before it
+        # opens any of them. Scoring a real round needs the geodata; test/stack.sh does that.
+        run: |
+          set -euo pipefail
+          tag=$(printf '%s\n' '${{ steps.meta.outputs.tags }}' | grep ':sha-' | head -1)
+          [ -n "${tag}" ] || { echo "::error::no sha- tag among: ${{ steps.meta.outputs.tags }}"; exit 1; }
+          echo "probing ${tag}"
+          docker pull -q "${tag}" >/dev/null
+          docker run -d --name calc -p 8000:8000 \
+            -e GEOSERVER_USER=probe -e GEOSERVER_PASSWORD=probe "${tag}"
+
+          # Plumber takes a while to load its libraries and bind. Poll rather than sleep-and-hope:
+          # a refused connection gives 000, a running plumber answers 404 for an unrouted path.
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/ || true)
+            if [ "${code}" != 000 ]; then ok=1; echo "answered ${code} after ${i} attempts"; break; fi
+            sleep 2
+          done
+          if [ "${ok:-0}" != 1 ]; then
+            echo "::error::the published image never accepted a connection on :8000"
+            docker logs calc || true
+            exit 1
+          fi
+
+          # Not "some uid that isn't 0": the number the esgame base's Deployment asserts.
+          uid=$(docker exec calc id -u)
+          echo "runs as uid ${uid}"
+          if [ "${uid}" != 10001 ]; then
+            echo "::error::image runs as uid ${uid}; the esgame base's calculation Deployment pins runAsUser: 10001"
+            exit 1
+          fi
+
+          # 400 exactly, with the reason. 500 would mean it died in the model; 200 that it scored a
+          # round it should have refused; a 404 that /esgame is not where it is served.
+          code=$(curl -s -D headers.txt -o body.txt -w '%{http_code}' --max-time 60 \
+            -X POST http://127.0.0.1:8000/esgame \
+            -H 'Origin: http://places.example' -H 'Content-Type: application/json' \
+            -d '{"allocation":[]}' || true)
+          echo "POST /esgame -> ${code}"
+          head -c 400 body.txt || true
+          echo
+          if [ "${code}" != 400 ]; then
+            echo "::error::POST /esgame with an empty allocation returned ${code}, expected 400"
+            docker logs calc || true
+            exit 1
+          fi
+          grep -q "'allocation' is empty" body.txt || {
+            echo "::error::the 400 did not say why; the refusal is supposed to be actionable"
+            exit 1
+          }
+
+          # The browser posts cross-origin, and the base's enable-cors is an ingress-nginx
+          # annotation: behind any other ingress controller nothing in front adds CORS, and
+          # calculation.r's own filter is all there is.
+          grep -qi '^access-control-allow-origin:' headers.txt || {
+            echo "::error::no Access-Control-Allow-Origin on the response; a browser would drop it"
+            cat headers.txt
+            exit 1
+          }
+          docker rm -f calc >/dev/null
+          echo "published image is the calculator: routes /esgame, refuses an empty round, answers CORS, uid ${uid}"
+
+      - name: Say what was published
+        run: |
+          tag=$(printf '%s\n' '${{ steps.meta.outputs.tags }}' | grep ':sha-' | head -1)
+          {
+            echo "### Published"
+            echo
+            echo '```'
+            printf '%s\n' '${{ steps.meta.outputs.tags }}'
+            echo '```'
+            echo
+            echo "digest: \`${{ steps.build.outputs.digest }}\`"
+            echo
+            echo "To deploy it, pin places-calculation in the deployment's overlay with \`newTag: ${tag##*:}\`."
+          } >> "$GITHUB_STEP_SUMMARY"

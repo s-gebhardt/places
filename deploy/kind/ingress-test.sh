@@ -3,6 +3,12 @@
 #
 #   deploy/kind/kind.sh up && deploy/kind/ingress-test.sh
 #
+# The same round against any other cluster running an overlay of deploy/k8s — only the kube
+# context, the ingress address and the host suffix change:
+#
+#   PLACES_KUBE_CONTEXT=<context> PLACES_INGRESS=http://<ingress address> PLACES_DOMAIN=<suffix> \
+#     deploy/kind/ingress-test.sh
+#
 # Every request here goes to the ingress on ${KIND_HTTP_PORT} with a Host header — never
 # port-forward, which proves a Pod listens and proves nothing about the Ingress in front of it.
 #
@@ -14,8 +20,18 @@ cd "$(dirname "$0")/../.."
 CLUSTER="${KIND_CLUSTER:-esgame}"
 NS="${PLACES_NAMESPACE:-places}"
 PORT="${KIND_HTTP_PORT:-8880}"
-BASE="http://localhost:${PORT}"
-K=(kubectl --context "kind-${CLUSTER}" -n "${NS}")
+BASE="${PLACES_INGRESS:-http://localhost:${PORT}}"
+K=(kubectl --context "${PLACES_KUBE_CONTEXT:-kind-${CLUSTER}}" -n "${NS}")
+# The hosts the overlay under test serves: places.local for deploy/kind, places.<suffix> elsewhere.
+DOMAIN="${PLACES_DOMAIN:-local}"
+FE="places.${DOMAIN}"; CALC="places-calculation.${DOMAIN}"; GS="places-geoserver.${DOMAIN}"
+# Where CALC_URL is sent below, as a browser would send it but without relying on DNS: the
+# address of the ingress itself. localhost is spelled out because --resolve needs an address.
+ingress_addr=$(sed -E 's|^https?://([^:/]+).*|\1|' <<<"${BASE}")
+case "${ingress_addr}" in
+  localhost) ingress_addr=127.0.0.1 ;;
+  *[!0-9.]*) ingress_addr=$(getent ahostsv4 "${ingress_addr}" | awk 'NR == 1 {print $1}') ;;
+esac
 
 fail=0
 check() { if eval "$2" >/dev/null 2>&1; then echo "  ok   $1"; else echo "  FAIL $1"; fail=1; fi; }
@@ -31,18 +47,18 @@ for i in esgame-angular-ingress esgame-calculation-ingress esgame-geoserver-ingr
 done
 
 echo "==> the frontend is PLACES, through the ingress"
-body=$(ing places.local / || true)
-check "places.local serves the app"        "[ \"\$(code places.local /)\" = 200 ]"
+body=$(ing "${FE}" / || true)
+check "${FE} serves the app"        "[ \"\$(code ${FE} /)\" = 200 ]"
 # `<app-root` only. With '<app-root\|<title' this matched ingress-nginx's own 404 page —
-# "<html><head><title>404 Not Found</title>..." — so with nothing serving places.local it
+# "<html><head><title>404 Not Found</title>..." — so with nothing serving the host it
 # reported that the app really was being served. Found by running this script against a deleted
 # deployment, which is the only way that shape shows up.
 check "index.html is really the app"       "grep -qi '<app-root' <<<\"\${body}\""
-data=$(ing places.local /assets/data.json || true)
+data=$(ing "${FE}" /assets/data.json || true)
 # The whole point of the overlay: PLACES' own data, not the upstream esgame image's.
 check "data.json is PLACES (title V.2)"    "grep -q 'Agriculture Edition V.2' <<<\"\${data}\""
 
-cfg=$(ing places.local /assets/config.json || true)
+cfg=$(ing "${FE}" /assets/config.json || true)
 want=$("${K[@]}" get cm esgame-config -o jsonpath='{.data.CALC_URL}' 2>/dev/null || true)
 got=$(sed -n 's/.*"calcUrl"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' <<<"${cfg}" || true)
 echo "     ConfigMap CALC_URL=${want}"
@@ -58,18 +74,18 @@ calc_port=$(sed -nE 's|^https?://[^:/]+:([0-9]+).*|\1|p' <<<"${got}")
 [ -n "${calc_port}" ] || calc_port=$(grep -q '^https' <<<"${got}" && echo 443 || echo 80)
 calc_path=$(sed -E 's|^https?://[^/]+||' <<<"${got}")
 echo "     as a client reads it: host=${calc_host} port=${calc_port} path=${calc_path}"
-calc_code=$(curl -s -o /dev/null -w '%{http_code}' -m 20 --resolve "${calc_host}:${calc_port}:127.0.0.1" \
+calc_code=$(curl -s -o /dev/null -w '%{http_code}' -m 20 --resolve "${calc_host}:${calc_port}:${ingress_addr}" \
   "http://${calc_host}:${calc_port}${calc_path}" -X POST -H 'Content-Type: application/json' \
   -d '{"allocation":[]}' 2>/dev/null || true)
 check "CALC_URL is reachable as written"   "[ -n '${calc_code}' ] && [ '${calc_code}' != 000 ]"
 
 echo "==> a wrong Host must NOT be served by our app"
-other=$(ing no-such-host.local / || true)
+other=$(ing "no-such-host.${DOMAIN}" / || true)
 check "unknown host is not the app" \
-  "[ \"\$(code places.local /)\" = 200 ] && { [ \"\$(code no-such-host.local /)\" != 200 ] || ! grep -qi '<app-root' <<<\"\${other}\"; }"
+  "[ \"\$(code ${FE} /)\" = 200 ] && { [ \"\$(code no-such-host.${DOMAIN} /)\" != 200 ] || ! grep -qi '<app-root' <<<\"\${other}\"; }"
 
 echo "==> geoserver through the ingress"
-check "geoserver web UI responds"          "[ \"\$(code places-geoserver.local /geoserver/index.html)\" = 200 ]"
+check "geoserver web UI responds"          "[ \"\$(code ${GS} /geoserver/index.html)\" = 200 ]"
 
 echo "==> the board id space the calculation will score against"
 "${K[@]}" exec deploy/esgame-calculation -- Rscript -e '
@@ -97,7 +113,7 @@ json.dump({"game_id": "kind", "round": 1, "score": 42,
           sys.stdout)
 PY
 start=$(date +%s)
-res=$(curl -s -m 900 -H 'Host: places-calculation.local' -H 'Content-Type: application/json' \
+res=$(curl -s -m 900 -H "Host: ${CALC}" -H 'Content-Type: application/json' \
         --data @/tmp/places-kind-payload.json "${BASE}/esgame" || true)
 echo "     POST /esgame -> $(( $(date +%s) - start ))s"
 # Not `-n`: with nothing serving, the POST comes back as nginx's 404 HTML — 145 bytes of it —

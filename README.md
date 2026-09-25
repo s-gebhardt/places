@@ -20,6 +20,10 @@ calculation/     # PLACES' R Plumber calculation service (its own image)
 deploy/
   compose/       # local / single-host stack (docker-compose.places.yml + .env.places.example)
   k8s/           # Kustomize overlay on esgame//deploy/k8s/base (image, hosts, calc geodata, CALC_URL)
+  kind/          # deploy/k8s on a local kind cluster, plus a real round through its ingress
+scripts/
+  fetch-geodata.sh    # fill the local geodata cache
+  release-geodata.sh  # publish that cache as the release tarball clusters load from
 ```
 
 **Not in git:** the large calculation **geodata** (rasters/CSVs) and any **secrets** — supply those
@@ -68,6 +72,11 @@ fetches the tarball from a `places-geodata-source` Secret and applies the same 1
 kubectl create secret generic places-geodata-source --from-literal=url='https://…/geodata.tar.gz'
 ```
 
+`scripts/release-geodata.sh` makes that tarball: it packs the cache byte-reproducibly, refuses a
+`LU_and_NEW_hexa.tif` that lacks the board's hexagon ids, and publishes it as a GitHub release
+named by its content (`geodata-<sha256 prefix>`). Then it checks that an anonymous download
+returns the same bytes, and prints the URL for the Secret. `--pack-only` stops before publishing.
+
 The target must stay **writable**: `calculation.r` does `setwd("/app/data")` and writes its seven
 output rasters and the spider-plot PNG back into that directory, then serves them from it. So the
 read-only cache is copied into a writable volume rather than mounted onto `/app/data` directly.
@@ -105,9 +114,9 @@ Every variable has a default that works, so that is the whole thing — copy
 change something. Set `PLACES_FRONTEND_PORT` / `PLACES_CALC_PORT` / `PLACES_GEOSERVER_PORT` if those
 host ports are taken; if you move the GeoServer port, move `GEOSERVER_PUBLIC_URL` with it.
 
-The frontend image builds `FROM` the upstream esgame image (`ESGAME_IMAGE`, pin to `:2.0.0` once
-tagged). `CALC_URL` is injected into the running frontend at start — no rebuild to retarget the
-backend.
+The frontend image builds `FROM` the upstream esgame image, **pinned** to an esgame build
+(`ESGAME_IMAGE`, default `ghcr.io/mlacayoemery/esgame:sha-d916a27`; move to `:2.0.0` once tagged).
+`CALC_URL` is injected into the running frontend at start — no rebuild to retarget the backend.
 
 **Two GeoServer addresses, and they are not interchangeable.** `GEOSERVER_URL` is server-to-server:
 the calculation publishes coverages over the REST API from inside the network. `GEOSERVER_PUBLIC_URL`
@@ -137,7 +146,8 @@ names — the Deployments really are called `esgame-angular`, `esgame-calculatio
 The first thing this found was a 504: ingress-nginx defaults `proxy_read_timeout` to 60s and a
 PLACES round takes 62-66s, so the calculator finished, published every coverage, and the client
 got `504 Gateway Time-out`. Fixed upstream in mlacayoemery/esgame#162, which this repository
-inherits through its rolling base ref.
+inherits through its base ref. Set `PLACES_KUBE_CONTEXT`, `PLACES_INGRESS` and `PLACES_DOMAIN` to
+run the same round against another cluster, through its own ingress.
 
 ## Testing it
 
@@ -145,39 +155,67 @@ inherits through its rolling base ref.
 test/stack.sh          # brings the stack up, plays a real round, asserts the result is usable
 test/stack.sh --down   # tear it down
 test/smoke.sh          # frontend overlay only (docker + curl)
-test/k8s.sh            # renders deploy/k8s and checks the overlay (needs kustomize)
+test/k8s.sh            # renders deploy/k8s (or an overlay of it) and checks it (needs kustomize)
 ```
 
 `test/stack.sh` checks scores are finite numbers, fetches the returned coverage URLs from outside
 the compose network, and asserts the calculation installs nothing at run time — each of which was a
 real silent failure, not a hypothetical one.
 
-**CI runs the first two of those** (`.github/workflows/overlay.yml`) on push, on PRs, and **daily**.
-The schedule matters more than it looks: both halves of this overlay track upstream by a rolling
-reference — `deploy/k8s` pulls the esgame base at `?ref=master`, and `frontend/Dockerfile` builds
-`FROM ghcr.io/mlacayoemery/esgame:master` — so this repository can break with nobody touching it.
-The push triggers catch what changes here; the daily run catches what changes there. `test/stack.sh`
-is not in CI: geodata plus a ~15 minute R build belongs in a hand-run.
+**CI runs the last two of those** (`.github/workflows/overlay.yml`) on push, on PRs, and **daily**.
+Both halves of this overlay are pinned to an esgame build: `deploy/k8s` pulls the base at a commit,
+and `frontend/Dockerfile` builds `FROM` an esgame `sha-` tag. They used to track master, and the
+repository broke with nobody touching it: master moved GeoServer to its own image. The pins keep
+what we deploy reproducible. The daily run's `upstream-master` job re-runs both tests against
+esgame **master**, so upstream changes still show up early, as "not safe to bump yet" rather than
+as a broken deployment. Preview a bump by hand with
+`ESGAME_REF=master test/k8s.sh` and `ESGAME_IMAGE=ghcr.io/mlacayoemery/esgame:master test/smoke.sh`.
+`test/stack.sh` is not in CI: geodata plus a ~15 minute R build belongs in a hand-run.
+
+**Images are published by CI**, not built on the cluster. `image-frontend.yml` and
+`image-calculation.yml` push `ghcr.io/s-gebhardt/places-{frontend,calculation}` from `main`, tagged
+`sha-<commit>` (immutable; what a deployment pins), `main` (rolling) and the version on a `v*` tag.
+Each one then pulls the tag it just pushed and checks that it runs.
 
 ## Deploy to Kubernetes
 
-```sh
-# set images, ingress hosts, and CALC_URL in deploy/k8s/ (CHANGE-ME-* placeholders), then:
-kubectl apply -k deploy/k8s
+`deploy/k8s` references the esgame base (`mlacayoemery/esgame//deploy/k8s/base?ref=<sha>`) and
+patches only: the images (PLACES frontend + calculation, and the base's GeoServer pinned to a
+`sha-` tag), the ingress hosts, the `CALC_URL`/GeoServer ConfigMap, and a PVC + init container that
+loads PLACES' geodata. It has placeholder hosts, so a deployment is an overlay on top of it that
+sets the real ones, as `deploy/kind` does for a local cluster.
+
+**Keep a real deployment's overlay out of this repository.** It is public, and an overlay names
+hosts, addresses and sizing that belong to whoever runs it. Put the overlay somewhere private,
+pointed at this repository by a pinned commit, with pinned `sha-` image tags:
+
+```yaml
+resources:
+  - https://github.com/s-gebhardt/places//deploy/k8s?ref=<commit>
 ```
 
-`deploy/k8s` references the esgame base (`mlacayoemery/esgame//deploy/k8s/base?ref=…`) and patches
-only: the images (PLACES frontend + calculation), the ingress hosts, the `CALC_URL`/GeoServer
-ConfigMap, and a PVC + init container that loads PLACES' geodata.
+Then check and apply it:
 
-> **The base ref is `master`, which rolls.** This overlay renders against whatever esgame master
-> is at the moment you run it, so two `kubectl apply -k` a week apart are not the same
-> deployment and an upstream change arrives with no gate. Deliberate for now — places tracks
-> esgame closely and wants base fixes immediately — but pin it to a commit
-> (`?ref=<sha>`) for anything you need to reproduce, and re-run `test/k8s.sh` after each bump.
+```sh
+test/k8s.sh /abs/path/to/overlay                        # the same checks as deploy/k8s gets
+kubectl create secret generic esgame-geoserver-admin --from-literal=username=admin \
+  --from-literal=password="$(openssl rand -hex 16)"     # hex: no spaces or glob characters
+kubectl create secret generic places-geodata-source --from-literal=url='<release tarball URL>'
+kustomize build /abs/path/to/overlay | kubectl apply -f -
+```
+
+Use a hex password. GeoServer's own `/opt/update_credentials.sh` hashes the password with
+`make_hash $GEOSERVER_ADMIN_PASSWORD` **unquoted**. So a password containing a space would get
+only its first word hashed, and GeoServer would then reject the full password the calculation sends.
+
+> **The base ref is pinned.** Two applies a week apart are the same deployment. To take upstream
+> fixes, preview with `ESGAME_REF=master test/k8s.sh`, then move the sha in
+> `deploy/k8s/kustomization.yaml`. If the base's GeoServer image moved, re-pin its tag there
+> too, and re-run `test/k8s.sh`.
 
 ## Updating game content
 
 Edit `frontend/data.json` (and/or the rasters in `frontend/assets/images/`) and rebuild the
-`places-frontend` image. The Angular app itself comes from upstream esgame — bump `ESGAME_IMAGE`
-to pull in app changes; no source rebuild here.
+`places-frontend` image. The Angular app itself comes from upstream esgame. To pull in app changes,
+bump the `ESGAME_IMAGE` pin in `frontend/Dockerfile` and `deploy/compose` (`test/smoke.sh` fails
+if the two drift). There's no source rebuild here.

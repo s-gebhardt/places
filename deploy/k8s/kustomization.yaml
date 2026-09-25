@@ -3,22 +3,22 @@ kind: Kustomization
 
 # Consume the esgame Kubernetes base (frontend + calculation + geoserver) and layer ONLY the
 # places-specific bits on top — no forked manifests.
-# Pin the ref to v2.0.0 once that esgame release is tagged (master is used until then; 1.9.0
-# predates deploy/k8s/base).
 resources:
-  # ROLLING REF. `?ref=master` means this overlay renders against whatever esgame master is at
-  # the moment you run it — two `kubectl apply -k` a week apart are not the same deployment, and
-  # an upstream change lands here with no gate. That is the same class of thing test/k8s.sh
-  # forbids for the GeoServer image ("GeoServer is not a rolling tag").
+  # PINNED to an esgame commit (master on 2026-09-25). It was `?ref=master`, which rendered
+  # against whatever master was at the moment you ran it: two `kubectl apply -k` a week apart
+  # were not the same deployment, and an upstream change landed here with no gate. It had
+  # already happened by the time this was pinned — master had moved GeoServer to its own
+  # esgame-geoserver image and test/k8s.sh failed with nobody here touching anything.
   #
-  # It is deliberate for now: places tracks esgame closely and wants base fixes immediately.
-  # Pin it to a commit for a deployment you need to reproduce:
-  #   ...esgame//deploy/k8s/base?ref=<sha>
-  # and re-run test/k8s.sh after each bump.
-  - https://github.com/mlacayoemery/esgame//deploy/k8s/base?ref=master
+  # Bumping is deliberate now. Preview what master would do first — the daily CI run does the
+  # same, so upstream breakage still shows up early, just not in a deployment:
+  #   ESGAME_REF=master test/k8s.sh
+  # then change the sha here, re-pin the GeoServer tag below if the base's image moved, and
+  # re-run test/k8s.sh. Move to v2.0.0 once that esgame release is tagged.
+  - https://github.com/mlacayoemery/esgame//deploy/k8s/base?ref=d5438c1ae3ff72eb6c4a2dacaa2915ee4fe1b6c0
   - pvc.yaml
 
-# Repoint the base's images at the places images.
+# Repoint the base's images at the places images, and pin the one image we still take from it.
 #
 # These key on the image the esgame base has ALREADY rewritten its logical names to, not on
 # the logical names themselves. Kustomize applies the base's own `images:` transformer first,
@@ -26,12 +26,21 @@ resources:
 # keyed on it matches nothing, does not warn, and leaves the upstream esgame image deployed.
 # Confirm with: kustomize build deploy/k8s | grep 'image:'
 images:
+  # Published by .github/workflows/image-frontend.yml and image-calculation.yml. `main` is the
+  # rolling tag those push from the main branch — like the base's own `master`. A deployment
+  # you need to reproduce pins the sha-<commit> tag instead, in its own overlay.
   - name: ghcr.io/mlacayoemery/esgame
-    newName: CHANGE-ME-registry/places-frontend      # built from ../../frontend
-    newTag: latest
+    newName: ghcr.io/s-gebhardt/places-frontend      # built from ../../frontend
+    newTag: main
   - name: ghcr.io/mlacayoemery/esgame-calculation
-    newName: CHANGE-ME-registry/places-calculation    # built from ../../calculation
-    newTag: latest
+    newName: ghcr.io/s-gebhardt/places-calculation    # built from ../../calculation
+    newTag: main
+  # The base names GeoServer by esgame's ROLLING `:master` tag, with imagePullPolicy: Always —
+  # so pinning the ref above pinned the manifest but not the GeoServer it deploys. sha-afe26c1
+  # is the tag whose digest master carried on 2026-09-25
+  # (sha256:8a5df0e75cb6962531b4a0f183570eb4da3983ea037070b3340fe29d755c9dfd).
+  - name: ghcr.io/mlacayoemery/esgame-geoserver
+    newTag: sha-afe26c1
 
 patches:
   # places' backend URL + geoserver (overrides the base ConfigMap).

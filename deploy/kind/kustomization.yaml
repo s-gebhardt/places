@@ -30,14 +30,14 @@ resources:
 
 images:
   # Keyed on what the PARENT overlay rewrote these to, not on the base's logical names and not
-  # on the ghcr defaults. Kustomize applies each images transformer in turn, so by the time this
-  # one runs the only names present are the CHANGE-ME-registry ones deploy/k8s produces. An
-  # entry keyed on anything else matches nothing and silently leaves them in place — which is
-  # the exact mistake this repository already shipped once.
-  - name: CHANGE-ME-registry/places-frontend
+  # on the esgame ghcr defaults. Kustomize applies each images transformer in turn, so by the
+  # time this one runs the only names present are the ghcr.io/s-gebhardt ones deploy/k8s
+  # produces. An entry keyed on anything else matches nothing and silently leaves them in place
+  # — which is the exact mistake this repository already shipped once.
+  - name: ghcr.io/s-gebhardt/places-frontend
     newName: localhost:5001/places-frontend
     newTag: local
-  - name: CHANGE-ME-registry/places-calculation
+  - name: ghcr.io/s-gebhardt/places-calculation
     newName: localhost:5001/places-calculation
     newTag: local
 

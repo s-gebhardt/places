@@ -1,19 +1,22 @@
 name: Validate the esgame overlay
 
-# PLACES is a thin overlay on esgame, and both halves of it track upstream by a ROLLING
-# reference: deploy/k8s pulls the base at `?ref=master`, and frontend/Dockerfile builds FROM
-# `ghcr.io/mlacayoemery/esgame:master`. So this repository can break without anyone touching
-# it — an upstream commit is enough.
+# PLACES is a thin overlay on esgame. Both halves of it are PINNED to an esgame build now:
+# deploy/k8s pulls the base at a commit, and frontend/Dockerfile builds FROM an esgame sha- tag.
+# They used to track esgame master, which meant this repository could break without anyone
+# touching it — and it did: master moved GeoServer to its own image and test/k8s.sh went red.
 #
-# That is the reason for the schedule. The push/PR triggers catch changes made here; the daily
-# run is what catches changes made there.
+# The pins make what we deploy reproducible; they do not make upstream stop moving. So the daily
+# run keeps a second purpose: the upstream-master job re-runs both overlay tests against esgame
+# MASTER, which is the early warning that the next bump will need work. A red upstream-master
+# with a green k8s-overlay/frontend-overlay means "do not bump yet", not "production is broken".
 #
 # Deliberately excluded: test/stack.sh. It needs the geodata cache and a ~15 minute R image
 # build, which is not a sensible thing to run on every push. Run it by hand — see the README.
 #
 # calculation/ was excluded too, which meant a syntax error in calculation.r surfaced only when
 # someone built that image and ran the stack. Building it in CI is still not sensible; PARSING
-# it is nearly free, so that is what the r-syntax job does.
+# it is nearly free, so that is what the r-syntax job does. (image-calculation.yml does build it,
+# but only to publish, on main.)
 
 on:
   push:
@@ -23,7 +26,7 @@ on:
     paths: ['deploy/**', 'frontend/**', 'test/**', 'calculation/**', '.github/workflows/overlay.yml']
   schedule:
     # 05:40 UTC. Off the hour on purpose: scheduled jobs landing exactly on :00 queue behind
-    # everyone else's.
+    # everyone else's. Runs every job below, pinned and upstream-master alike.
     - cron: '40 5 * * *'
   workflow_dispatch:
 
@@ -51,10 +54,33 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Build the thin image on the upstream esgame base and check what it serves
-        # Catches the other rolling dependency: a change to ghcr.io/mlacayoemery/esgame:master
-        # that stops PLACES' config/data/map assets being served correctly.
+      - name: Build the thin image on the pinned esgame base and check what it serves
         run: test/smoke.sh
+
+  upstream-master:
+    # The early warning the pins would otherwise have taken away: both overlay tests, against
+    # esgame master instead of the pinned build. Scheduled and manual only — on a push it would
+    # make this repository's CI fail for upstream's changes, which is what the pins are for.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install kustomize and kubeconform
+        run: |
+          curl -sSfL -o kustomize.tar.gz \
+            https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.7.1/kustomize_v5.7.1_linux_amd64.tar.gz
+          tar -xzf kustomize.tar.gz
+          curl -sSfL -o kubeconform.tar.gz \
+            https://github.com/yannh/kubeconform/releases/download/v0.7.0/kubeconform-linux-amd64.tar.gz
+          tar -xzf kubeconform.tar.gz
+          sudo mv kustomize kubeconform /usr/local/bin/
+
+      - name: The overlays on the esgame base at master
+        run: ESGAME_REF=master test/k8s.sh
+
+      - name: The thin image on the esgame image at master
+        run: ESGAME_IMAGE=ghcr.io/mlacayoemery/esgame:master test/smoke.sh
 
   r-syntax:
     runs-on: ubuntu-latest

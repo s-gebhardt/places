@@ -25,7 +25,8 @@ services:
     build:
       context: ../../frontend
       args:
-        ESGAME_IMAGE: ${ESGAME_IMAGE:-ghcr.io/mlacayoemery/esgame:master}
+        # The same pin as frontend/Dockerfile's ARG default — test/smoke.sh fails if they drift.
+        ESGAME_IMAGE: ${ESGAME_IMAGE:-ghcr.io/mlacayoemery/esgame:sha-d916a27}
     image: places-frontend
     container_name: places-frontend
     environment:
